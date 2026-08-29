@@ -57,6 +57,74 @@ pub fn toggle_enabled(enabled: bool) -> Result<bool, String> {
     Ok(enabled)
 }
 
+/// Open a URL in Google Chrome with cross-platform fallback
+fn open_in_chrome(url: &str) -> Result<(), String> {
+    use std::process::Command;
+
+    #[cfg(target_os = "windows")]
+    {
+        // Try chrome command directly first, then start chrome, then default browser
+        if Command::new("chrome").arg(url).spawn().is_ok() {
+            return Ok(());
+        }
+        if Command::new("cmd").args(&["/C", "start", "chrome", url]).spawn().is_ok() {
+            return Ok(());
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if Command::new("open").args(&["-a", "Google Chrome", url]).spawn().is_ok() {
+            return Ok(());
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        if Command::new("google-chrome").arg(url).spawn().is_ok() {
+            return Ok(());
+        }
+        if Command::new("google-chrome-stable").arg(url).spawn().is_ok() {
+            return Ok(());
+        }
+        if Command::new("chrome").arg(url).spawn().is_ok() {
+            return Ok(());
+        }
+        if Command::new("chromium").arg(url).spawn().is_ok() {
+            return Ok(());
+        }
+        if Command::new("chromium-browser").arg(url).spawn().is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Fallback: system default url launcher via xdg-open / open / start
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(&["/C", "start", url])
+            .spawn()
+            .map_err(|e| format!("Failed to launch URL: {}", e))?;
+        Ok(())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| format!("Failed to launch URL: {}", e))?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| format!("Failed to launch URL: {}", e))?;
+        Ok(())
+    }
+}
+
 /// Execute an Orbit action.
 #[tauri::command]
 pub fn execute_action(action: Action) -> Result<(), String> {
@@ -70,6 +138,10 @@ pub fn execute_action(action: Action) -> Result<(), String> {
 
     if target.is_empty() {
         return Err("Action target is empty".to_string());
+    }
+
+    if action.r#type == ActionType::URL || target.starts_with("http://") || target.starts_with("https://") {
+        return open_in_chrome(target);
     }
 
     use std::process::Command;

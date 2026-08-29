@@ -43,6 +43,13 @@ pub fn load_rust_config() -> Config {
                         if let Err(e) = save_to_disk(&config) {
                             eprintln!("[Orbit] Failed to save default items: {}", e);
                         }
+                    } else if !config.items.iter().any(|item| item.id == "ai-menu") {
+                        if let Some(ai_item) = default_items().into_iter().find(|i| i.id == "ai-menu") {
+                            config.items.push(ai_item);
+                            if let Err(e) = save_to_disk(&config) {
+                                eprintln!("[Orbit] Failed to save updated items with AI menu: {}", e);
+                            }
+                        }
                     }
                     config
                 }
@@ -135,6 +142,47 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("Run a demo command".to_string()),
+        },
+        Action {
+            id: "ai-menu".to_string(),
+            name: "AI".to_string(),
+            r#type: ActionType::URL,
+            target: "https://chatgpt.com".to_string(),
+            icon: None,
+            enabled: true,
+            description: Some("AI Tools".to_string()),
+            children: Some(vec![
+                Action {
+                    id: "ai-chatgpt".to_string(),
+                    name: "ChatGPT".to_string(),
+                    r#type: ActionType::URL,
+                    target: "https://chatgpt.com".to_string(),
+                    icon: None,
+                    enabled: true,
+                    description: Some("Open ChatGPT in Chrome".to_string()),
+                    children: None,
+                },
+                Action {
+                    id: "ai-claude".to_string(),
+                    name: "Claude".to_string(),
+                    r#type: ActionType::URL,
+                    target: "https://claude.ai".to_string(),
+                    icon: None,
+                    enabled: true,
+                    description: Some("Open Claude in Chrome".to_string()),
+                    children: None,
+                },
+                Action {
+                    id: "ai-gemini".to_string(),
+                    name: "Gemini".to_string(),
+                    r#type: ActionType::URL,
+                    target: "https://gemini.google.com".to_string(),
+                    icon: None,
+                    enabled: true,
+                    description: Some("Open Gemini in Chrome".to_string()),
+                    children: None,
+                },
+            ]),
         },
     ]
 }
