@@ -32,12 +32,18 @@ pub fn load_rust_config() -> Config {
     match std::fs::read_to_string(&path) {
         Ok(content) => {
             match serde_json::from_str::<Config>(&content) {
-                Ok(config) => {
+                Ok(mut config) => {
                     println!(
                         "[Orbit] Configuration loaded from {:?}",
                         path
                     );
-
+                    // Add default items if missing
+                    if config.items.is_empty() {
+                        config.items = default_items();
+                        if let Err(e) = save_to_disk(&config) {
+                            eprintln!("[Orbit] Failed to save default items: {}", e);
+                        }
+                    }
                     config
                 }
 
@@ -46,12 +52,13 @@ pub fn load_rust_config() -> Config {
                         "[Orbit] Failed to parse configuration: {}",
                         error
                     );
-
-                    eprintln!(
-                        "[Orbit] Using default configuration"
-                    );
-
-                    Config::default()
+                    eprintln!("[Orbit] Using default configuration");
+                    let mut config = Config::default();
+                    config.items = default_items();
+                    if let Err(e) = save_to_disk(&config) {
+                        eprintln!("[Orbit] Failed to save default configuration: {}", e);
+                    }
+                    config
                 }
             }
         }
@@ -76,6 +83,60 @@ pub fn load_rust_config() -> Config {
             config
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Default items for the radial wheel (clipboard, notepad, calculator, browser, explorer)
+// ---------------------------------------------------------------------------
+fn default_items() -> Vec<crate::types::Action> {
+    use crate::types::{Action, ActionType};
+    vec![
+        Action {
+            id: "open-notepad".to_string(),
+            name: "Notepad".to_string(),
+            r#type: ActionType::Application,
+            target: "notepad.exe".to_string(),
+            icon: None,
+            enabled: true,
+            description: Some("Open Windows Notepad".to_string()),
+        },
+        Action {
+            id: "open-calc".to_string(),
+            name: "Calculator".to_string(),
+            r#type: ActionType::Application,
+            target: "calc.exe".to_string(),
+            icon: None,
+            enabled: true,
+            description: Some("Open Windows Calculator".to_string()),
+        },
+        Action {
+            id: "open-browser".to_string(),
+            name: "Browser".to_string(),
+            r#type: ActionType::URL,
+            target: "https://www.google.com".to_string(),
+            icon: None,
+            enabled: true,
+            description: Some("Open default browser".to_string()),
+        },
+        Action {
+            id: "open-explorer".to_string(),
+            name: "Explorer".to_string(),
+            r#type: ActionType::Folder,
+            target: "C:\\".to_string(),
+            icon: None,
+            enabled: true,
+            description: Some("Open Windows Explorer at C:".to_string()),
+        },
+        Action {
+            id: "clipboard-demo".to_string(),
+            name: "Clipboard Demo".to_string(),
+            r#type: ActionType::Command,
+            target: "cmd /C echo Clipboard Demo".to_string(),
+            icon: None,
+            enabled: true,
+            description: Some("Run a demo command".to_string()),
+        },
+    ]
 }
 
 /// Save configuration to disk.

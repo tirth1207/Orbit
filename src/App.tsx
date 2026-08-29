@@ -58,6 +58,9 @@ function App() {
       itemCount: 0,
     });
 
+  // Position where the wheel should appear (screen coordinates)
+  const [wheelPos, setWheelPos] = useState<{x:number;y:number}>({x:0,y:0});
+    
   const [settingsVisible, setSettingsVisible] =
     useState(false);
 
@@ -144,30 +147,16 @@ function App() {
           await listen<OrbitTriggerPayload>(
             "orbit-trigger",
             (event) => {
-              console.log(
-                "================================"
-              );
-
-              console.log(
-                "[Orbit] GLOBAL SHORTCUT RECEIVED"
-              );
-
-              console.log(
-                "[Orbit] Payload:",
-                event.payload
-              );
-
-              console.log(
-                "================================"
-              );
+              console.log("[Orbit] orbit-trigger received");
+              console.log("[Orbit] Cursor position:", event.payload);
 
               if (!config.enabled) {
-                console.log(
-                  "[Orbit] Disabled - ignoring shortcut"
-                );
-
+                console.log("[Orbit] Disabled - ignoring shortcut");
                 return;
               }
+
+              // Store cursor position for wheel placement
+              setWheelPos({ x: event.payload.x, y: event.payload.y });
 
               setWheel((prev) => ({
                 ...prev,
@@ -182,23 +171,7 @@ function App() {
         // WHEEL OPEN
         // --------------------------------------------
 
-        unlistenWheelOpen =
-          await listen<OrbitTriggerPayload>(
-            "wheel-open",
-            (event) => {
-              console.log(
-                "[Orbit] wheel-open:",
-                event.payload
-              );
-
-              setWheel((prev) => ({
-                ...prev,
-                open: true,
-                selectedIndex: -1,
-                hoveredIndex: null,
-              }));
-            }
-          );
+        // wheel-open listener removed (orbit-trigger now handles opening)
 
         // --------------------------------------------
         // WHEEL CLOSE
@@ -511,48 +484,51 @@ function App() {
       {/* ========================================= */}
 
       {wheel.open && (
-        <RadialWheel
-          items={enabledItems.map(
-            (item) => ({
-              id: item.id,
-              name: item.name,
-              type: item.actionType,
-              target: item.target,
-              icon:
-                item.icon ??
-                "/orbit-icon.png",
-              enabled: item.enabled,
-            })
-          )}
-
-          selectedIndex={
-            wheel.selectedIndex
-          }
-
-          hoveredIndex={
-            wheel.hoveredIndex
-          }
-
-          onItemSelect={
-            handleItemSelect
-          }
-
-          onItemHover={
-            handleItemHover
-          }
-
-          onClose={closeWheel}
-
-          radius={config.radius}
-
-          deadZone={
-            config.deadZone
-          }
-
-          showCenter={true}
-
-          centerIcon="🛰️"
-        />
+        <div
+          style={{
+            position: "fixed",
+            left: wheelPos.x - config.radius,
+            top: wheelPos.y - config.radius,
+            width: config.radius * 2,
+            height: config.radius * 2,
+            pointerEvents: "auto",
+            // The wheel component expects its own radius/size, so we let it render full size
+          }}
+        >
+          <RadialWheel
+            items={enabledItems.map(
+              (item) => ({
+                id: item.id,
+                name: item.name,
+                type: item.actionType,
+                target: item.target,
+                icon:
+                  item.icon ??
+                  "/orbit-icon.png",
+                enabled: item.enabled,
+              })
+            )}
+            selectedIndex={
+              wheel.selectedIndex
+            }
+            hoveredIndex={
+              wheel.hoveredIndex
+            }
+            onItemSelect={
+              handleItemSelect
+            }
+            onItemHover={
+              handleItemHover
+            }
+            onClose={closeWheel}
+            radius={config.radius}
+            deadZone={
+              config.deadZone
+            }
+            showCenter={true}
+            centerIcon="x"
+          />
+        </div>
       )}
 
       {/* ========================================= */}

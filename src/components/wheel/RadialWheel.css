@@ -1,0 +1,122 @@
+/* Wheel-specific styles (extracted from App.css) */
+.wheel-background {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(35, 35, 45, 0.96) 0%, rgba(18, 18, 25, 0.97) 55%, rgba(8, 8, 12, 0.99) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45), 0 8px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  pointer-events: none;
+}
+
+.wheel-ring {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  pointer-events: none;
+}
+
+.wheel-item {
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  z-index: 10;
+  transition: transform 120ms ease, opacity 120ms ease, filter 120ms ease;
+}
+
+.wheel-item-inner {
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid transparent;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.sector-icon {
+  width: 34px;
+  height: 34px;
+  display: block;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  flex-shrink: 0;
+  opacity: 0.9;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.sector-label {
+  max-width: 78px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: none;
+  pointer-events: none;
+}
+
+.wheel-item:hover .wheel-item-inner,
+.wheel-item.hovered .wheel-item-inner {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.wheel-item:hover .sector-icon,
+.wheel-item.hovered .sector-icon {
+  opacity: 1;
+}
+
+.wheel-item:hover .sector-label,
+.wheel-item.hovered .sector-label {
+  color: #fff;
+}
+
+.wheel-item.selected .wheel-item-inner {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wheel-item.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.wheel-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--dead-zone);
+  height: var(--dead-zone);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.wheel-center:hover {
+  background: rgba(255,255,255,0.2);
+}
