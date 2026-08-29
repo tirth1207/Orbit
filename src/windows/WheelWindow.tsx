@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import { RadialWheel } from "../components/wheel/RadialWheel";
+
 import { type Action } from "../types/types";
 
 interface WheelAppConfig {
@@ -20,167 +26,400 @@ interface LocalWheelState {
   hoveredIndex: number | null;
 }
 
-/**
- * Root component for the dedicated "wheel" window (index.html#/wheel).
- *
- * This window is transparent, undecorated, always-on-top and hidden by
- * default — src-tauri positions it on the cursor and shows it when the
- * global shortcut fires, so the wheel appears as an overlay above
- * whatever app currently has focus (Chrome, VS Code, etc.) instead of
- * bringing Orbit's own window to the front.
- *
- * The window is hidden (not destroyed) on close, so this component's
- * state persists between openings — the "orbit-trigger" listener below
- * resets selection state each time it's shown again.
- */
 export function WheelWindow() {
-  const [config, setConfig] = useState<WheelAppConfig | null>(null);
-  const [wheel, setWheel] = useState<LocalWheelState>({
-    selectedIndex: -1,
-    hoveredIndex: null,
-  });
+  const [config, setConfig] =
+    useState<WheelAppConfig | null>(null);
 
-  // Guards against double-invoking close_wheel (e.g. Escape firing while
-  // a selection is already closing the window).
-  const closingRef = useRef(false);
+  const [wheel, setWheel] =
+    useState<LocalWheelState>({
+      selectedIndex: -1,
+      hoveredIndex: null,
+    });
 
-  // This window has no visible chrome of its own — only the wheel
-  // should be visible, so the page background must stay fully
-  // transparent (the settings window, loaded without the #/wheel hash,
-  // is unaffected since this effect only runs here).
+  const closingRef =
+    useRef(false);
+
+  /* ========================================================
+     MAKE THE TAURI WEBVIEW A TRUE TRANSPARENT OVERLAY
+     ======================================================== */
+
   useEffect(() => {
-    document.documentElement.style.background = "transparent";
-    document.body.style.background = "transparent";
+    const html =
+      document.documentElement;
+
+    const body =
+      document.body;
+
+    html.style.margin = "0";
+    html.style.padding = "0";
+
+    html.style.width = "100%";
+    html.style.height = "100%";
+
+    html.style.overflow = "hidden";
+
+    html.style.background =
+      "transparent";
+
+    body.style.margin = "0";
+    body.style.padding = "0";
+
+    body.style.width = "100%";
+    body.style.height = "100%";
+
+    body.style.overflow = "hidden";
+
+    body.style.background =
+      "transparent";
+
+    return () => {
+      html.style.overflow = "";
+      body.style.overflow = "";
+    };
   }, []);
 
+  /* ========================================================
+     LOAD CONFIG
+     ======================================================== */
+
   useEffect(() => {
-    invoke<WheelAppConfig>("load_configuration")
+    invoke<WheelAppConfig>(
+      "load_configuration"
+    )
       .then(setConfig)
-      .catch((error) => console.error("[Orbit] Failed to load configuration:", error));
+      .catch((error) => {
+        console.error(
+          "[Orbit] Failed to load configuration:",
+          error
+        );
+      });
   }, []);
 
-  useEffect(() => {
-    let unlistenTrigger: (() => void) | undefined;
+  /* ========================================================
+     TRIGGER
+     ======================================================== */
 
-    listen("orbit-trigger", () => {
-      closingRef.current = false;
-      setWheel({ selectedIndex: -1, hoveredIndex: null });
-    }).then((fn) => {
-      unlistenTrigger = fn;
+  useEffect(() => {
+    let unlisten:
+      (() => void) | undefined;
+
+    listen(
+      "orbit-trigger",
+      () => {
+        closingRef.current = false;
+
+        setWheel({
+          selectedIndex: -1,
+          hoveredIndex: null,
+        });
+      }
+    ).then((fn) => {
+      unlisten = fn;
     });
 
     return () => {
-      unlistenTrigger?.();
+      unlisten?.();
     };
   }, []);
 
-  // Picks config back up if it changes while the window sits hidden
-  // (e.g. items edited from the settings window).
-  useEffect(() => {
-    let unlistenEnabledChanged: (() => void) | undefined;
+  /* ========================================================
+     ENABLED STATE
+     ======================================================== */
 
-    listen<boolean>("tray-enabled-changed", (event) => {
-      setConfig((prev) => (prev ? { ...prev, enabled: event.payload } : prev));
-    }).then((fn) => {
-      unlistenEnabledChanged = fn;
+  useEffect(() => {
+    let unlisten:
+      (() => void) | undefined;
+
+    listen<boolean>(
+      "tray-enabled-changed",
+      (event) => {
+        setConfig((prev) =>
+          prev
+            ? {
+                ...prev,
+                enabled:
+                  event.payload,
+              }
+            : prev
+        );
+      }
+    ).then((fn) => {
+      unlisten = fn;
     });
 
     return () => {
-      unlistenEnabledChanged?.();
+      unlisten?.();
     };
   }, []);
 
-  const closeWheel = useCallback(() => {
-    if (closingRef.current) {
-      return;
-    }
+  /* ========================================================
+     CLOSE
+     ======================================================== */
 
-    closingRef.current = true;
-
-    invoke("close_wheel").catch((error) => {
-      console.error("[Orbit] Failed to close wheel:", error);
-      closingRef.current = false;
-    });
-  }, []);
-
-  const enabledItems = (config?.items ?? []).filter((item) => item.enabled);
-
-  const handleItemSelect = useCallback(
-    async (index: number, childIndex?: number) => {
-      const item = enabledItems[index];
-
-      if (!item) {
-        console.warn("[Orbit] Invalid wheel index:", index);
+  const closeWheel =
+    useCallback(() => {
+      if (closingRef.current) {
         return;
       }
 
-      let targetItem = item;
-      if (childIndex !== undefined && item.children && item.children[childIndex]) {
-        targetItem = item.children[childIndex];
-      }
+      closingRef.current = true;
 
-      console.log("[Orbit] Selected:", targetItem.name);
+      invoke("close_wheel").catch(
+        (error) => {
+          console.error(
+            "[Orbit] Failed to close wheel:",
+            error
+          );
 
-      try {
-        await invoke("execute_action", { action: targetItem });
-      } catch (error) {
-        console.error("[Orbit] Failed to execute action:", error);
-      } finally {
-        closeWheel();
-      }
-    },
-    [enabledItems, closeWheel],
-  );
+          closingRef.current = false;
+        }
+      );
+    }, []);
 
-  const handleItemHover = useCallback((index: number | null) => {
-    setWheel((prev) => ({ ...prev, hoveredIndex: index }));
-  }, []);
+  /* ========================================================
+     ENABLED ITEMS
+     ======================================================== */
 
-  // Config hasn't loaded yet (very first launch) — render nothing rather
-  // than a wheel with zero items.
+  const enabledItems =
+    (config?.items ?? [])
+      .filter(
+        (item) =>
+          item.enabled
+      );
+
+  /* ========================================================
+     SELECT
+     ======================================================== */
+
+ const handleItemSelect = useCallback(
+  async (
+    index: number,
+    childIndex?: number,
+  ) => {
+    const item = enabledItems[index];
+
+    if (!item) {
+      console.warn(
+        "[Orbit] Invalid wheel index:",
+        index,
+      );
+
+      closeWheel();
+      return;
+    }
+
+    /*
+     * Parent item with children:
+     *
+     * Clicking AI should OPEN the nested menu,
+     * not close the wheel.
+     */
+    if (
+      childIndex === undefined &&
+      item.children &&
+      item.children.length > 0
+    ) {
+      return;
+    }
+
+    let targetItem = item;
+
+    /*
+     * Nested child selection.
+     */
+    if (
+      childIndex !== undefined &&
+      item.children &&
+      item.children[childIndex]
+    ) {
+      targetItem =
+        item.children[childIndex];
+    }
+
+    console.log(
+      "[Orbit] Selected:",
+      targetItem.name,
+    );
+
+    /*
+     * =====================================================
+     * CLOSE FIRST
+     * =====================================================
+     *
+     * This is intentionally BEFORE execute_action.
+     *
+     * The UI lifecycle must not depend on whether the
+     * command succeeds or fails.
+     */
+    closeWheel();
+
+    /*
+     * Execute after requesting the wheel to close.
+     */
+    try {
+      await invoke("execute_action", {
+        action: targetItem,
+      });
+    } catch (error) {
+      console.error(
+        "[Orbit] Failed to execute action:",
+        error,
+      );
+    }
+  },
+  [
+    enabledItems,
+    closeWheel,
+  ],
+);
+
+  /* ========================================================
+     HOVER
+     ======================================================== */
+
+  const handleItemHover =
+    useCallback(
+      (
+        index: number | null
+      ) => {
+        setWheel((prev) => ({
+          ...prev,
+          hoveredIndex: index,
+        }));
+      },
+      []
+    );
+
+  /* ========================================================
+     WAIT FOR CONFIG
+     ======================================================== */
+
   if (!config) {
     return null;
   }
 
+  /* ========================================================
+     RENDER
+     ======================================================== */
+
   return (
     <div
+      className="wheel-window-root"
       style={{
-        width: "fit-content",
-        height: "fit-content",
+        position: "relative",
+
+        width: "100vw",
+        height: "100vh",
+
+        minWidth: 0,
+        minHeight: 0,
+
+        margin: 0,
+        padding: 0,
+
         display: "flex",
+
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
-        overflow: "hidden"
+
+        background:
+          "transparent",
+
+        overflow: "visible",
+
+        pointerEvents:
+          "none",
+
+        boxSizing:
+          "border-box",
       }}
     >
-      <RadialWheel
-        items={enabledItems.map((item) => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          target: item.target,
-          icon: item.icon ?? "/orbit-icon.png",
-          enabled: item.enabled,
-          children: item.children?.map((child) => ({
-            id: child.id,
-            name: child.name,
-            type: child.type,
-            target: child.target,
-            icon: child.icon ?? "/orbit-icon.png",
-            enabled: child.enabled,
-          })),
-        }))}
-        selectedIndex={wheel.selectedIndex}
-        hoveredIndex={wheel.hoveredIndex}
-        onItemSelect={handleItemSelect}
-        onItemHover={handleItemHover}
-        onClose={closeWheel}
-        radius={config.radius}
-        deadZone={config.deadZone}
-        showCenter={true}
-        centerIcon="x"
-      />
+      <div
+        style={{
+          position: "relative",
+
+          width: "fit-content",
+          height: "fit-content",
+
+          flex: "0 0 auto",
+
+          display: "block",
+
+          overflow:
+            "visible",
+
+          pointerEvents:
+            "auto",
+        }}
+      >
+        <RadialWheel
+          items={enabledItems.map(
+            (item) => ({
+              id: item.id,
+              name: item.name,
+              type: item.type,
+              target: item.target,
+
+              icon:
+                item.icon ??
+                undefined,
+
+              enabled:
+                item.enabled,
+
+              children:
+                item.children?.map(
+                  (child) => ({
+                    id: child.id,
+                    name: child.name,
+                    type: child.type,
+                    target:
+                      child.target,
+
+                    icon:
+                      child.icon ??
+                      undefined,
+
+                    enabled:
+                      child.enabled,
+                  })
+                ),
+            })
+          )}
+
+          selectedIndex={
+            wheel.selectedIndex
+          }
+
+          hoveredIndex={
+            wheel.hoveredIndex
+          }
+
+          onItemSelect={
+            handleItemSelect
+          }
+
+          onItemHover={
+            handleItemHover
+          }
+
+          onClose={
+            closeWheel
+          }
+
+          radius={
+            config.radius
+          }
+
+          deadZone={
+            config.deadZone
+          }
+
+          showCenter={true}
+
+          centerIcon="x"
+        />
+      </div>
     </div>
   );
 }
