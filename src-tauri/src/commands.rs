@@ -72,64 +72,57 @@ pub fn execute_action(action: Action) -> Result<(), String> {
         return Err("Action target is empty".to_string());
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-        let parts: Vec<&str> = target.split_whitespace().collect();
-        if parts.is_empty() {
-            return Err("Empty command".to_string());
-        }
-        Command::new(parts[0])
-            .args(&parts[1..])
-            .spawn()
-            .map_err(|e| format!("Failed to execute action: {}", e))?;
-        Ok(())
+    use std::process::Command;
+    let parts: Vec<&str> = target.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err("Empty command".to_string());
     }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        use std::process::Command;
-        let parts: Vec<&str> = target.split_whitespace().collect();
-        if parts.is_empty() {
-            return Err("Empty command".to_string());
-        }
-        Command::new(parts[0])
-            .args(&parts[1..])
-            .spawn()
-            .map_err(|e| format!("Failed to execute action: {}", e))?;
-        Ok(())
-    }
+    Command::new(parts[0])
+        .args(&parts[1..])
+        .spawn()
+        .map_err(|e| format!("Failed to execute action: {}", e))?;
+    Ok(())
 }
 
-/// Tell the frontend to open the radial wheel.
+/// Show the radial wheel at the given screen coordinates. This is the
+/// same path the global shortcut uses internally — exposed as a command
+/// too so other triggers (e.g. a future middle-mouse trigger) can reuse it.
 #[tauri::command]
 pub fn open_wheel(app: tauri::AppHandle, x: f64, y: f64) -> Result<(), String> {
     println!("[Orbit] Opening wheel at ({}, {})", x, y);
 
     let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "Main window not found".to_string())?;
+        .get_webview_window("wheel")
+        .ok_or_else(|| "Wheel window not found".to_string())?;
+
+    let cfg = app.state::<crate::types::Config>();
+    crate::place_wheel_window(&window, x, y, cfg.settings.appearance.radius);
+
+    let focus_state = app.state::<crate::PreviousForeground>();
+    crate::capture_foreground_window(&focus_state);
 
     window.show().map_err(|e| format!("Failed to show window: {}", e))?;
     window.set_focus().map_err(|e| format!("Failed to focus window: {}", e))?;
     window
-        .emit(
-            "wheel-open",
-            serde_json::json!({ "x": x, "y": y }),
-        )
-        .map_err(|e| format!("Failed to emit wheel-open: {}", e))?;
+        .emit("orbit-trigger", serde_json::json!({ "x": x, "y": y }))
+        .map_err(|e| format!("Failed to emit orbit-trigger: {}", e))?;
     Ok(())
 }
 
-/// Close the radial wheel.
+/// Hide the radial wheel and hand focus back to whatever app had it
+/// before Orbit's wheel window took over (e.g. Chrome).
 #[tauri::command]
 pub fn close_wheel(app: tauri::AppHandle) -> Result<(), String> {
     println!("[Orbit] Closing wheel");
+
     let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "Main window not found".to_string())?;
-    window
-        .emit("wheel-close", ())
-        .map_err(|e| format!("Failed to emit wheel-close: {}", e))?;
+        .get_webview_window("wheel")
+        .ok_or_else(|| "Wheel window not found".to_string())?;
+
+    window.hide().map_err(|e| format!("Failed to hide window: {}", e))?;
+
+    let focus_state = app.state::<crate::PreviousForeground>();
+    crate::restore_foreground_window(&focus_state);
+
     Ok(())
 }
