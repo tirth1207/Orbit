@@ -1,3 +1,13 @@
+export interface RadialWheelItem {
+  id: string;
+  name: string;
+  type?: string;
+  target?: string;
+  icon?: string | null;
+  enabled: boolean;
+  children?: RadialWheelItem[];
+}
+
 export interface Action {
   id: string;
   name: string;
@@ -5,15 +15,17 @@ export interface Action {
   target: string;
   icon: string | null;
   enabled: boolean;
+  children?: Action[];
 }
 
 export interface WheelItemProps {
   id: string;
   name: string;
-  type: string;
-  target: string;
-  icon: string | null;
+  type?: string;
+  target?: string;
+  icon?: string | null;
   enabled: boolean;
+  children?: WheelItemProps[];
 }
 
 export interface AppConfig {

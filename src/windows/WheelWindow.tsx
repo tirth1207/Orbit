@@ -106,7 +106,7 @@ export function WheelWindow() {
   const enabledItems = (config?.items ?? []).filter((item) => item.enabled);
 
   const handleItemSelect = useCallback(
-    async (index: number) => {
+    async (index: number, childIndex?: number) => {
       const item = enabledItems[index];
 
       if (!item) {
@@ -114,10 +114,15 @@ export function WheelWindow() {
         return;
       }
 
-      console.log("[Orbit] Selected:", item.name);
+      let targetItem = item;
+      if (childIndex !== undefined && item.children && item.children[childIndex]) {
+        targetItem = item.children[childIndex];
+      }
+
+      console.log("[Orbit] Selected:", targetItem.name);
 
       try {
-        await invoke("execute_action", { action: item });
+        await invoke("execute_action", { action: targetItem });
       } catch (error) {
         console.error("[Orbit] Failed to execute action:", error);
       } finally {
@@ -157,6 +162,14 @@ export function WheelWindow() {
           target: item.target,
           icon: item.icon ?? "/orbit-icon.png",
           enabled: item.enabled,
+          children: item.children?.map((child) => ({
+            id: child.id,
+            name: child.name,
+            type: child.type,
+            target: child.target,
+            icon: child.icon ?? "/orbit-icon.png",
+            enabled: child.enabled,
+          })),
         }))}
         selectedIndex={wheel.selectedIndex}
         hoveredIndex={wheel.hoveredIndex}
