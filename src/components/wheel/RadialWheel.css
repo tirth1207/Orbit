@@ -1,4 +1,139 @@
-/* Wheel-specific styles (extracted from App.css) */
+/* Wheel-specific styles */
+.nested-wheel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 4;
+  overflow: visible;
+}
+
+.nested-wheel .wheel-sector {
+  width: 82px;
+  height: 82px;
+  min-width: 82px;
+  min-height: 82px;
+
+  pointer-events: auto;
+
+  opacity: 0;
+
+  transform:
+    translate(-50%, -50%)
+    translate(0, 0)
+    scale(0.2);
+
+  animation:
+    nested-item-open
+    380ms
+    cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+
+  animation-delay: var(--nested-stagger-delay);
+}
+
+.nested-wheel .sector-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+}
+
+.nested-wheel .sector-label {
+  font-size: 12px;
+  max-width: 90px;
+}
+
+@keyframes nested-item-open {
+  0% {
+    opacity: 0;
+
+    transform:
+      translate(-50%, -50%)
+      translate(0, 0)
+      scale(0.2);
+  }
+
+  70% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      translate(var(--item-x), var(--item-y))
+      scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      translate(var(--item-x), var(--item-y))
+      scale(1);
+  }
+}
+
+.nested-wheel.is-closing .wheel-sector {
+  pointer-events: none;
+
+  animation:
+    nested-item-close
+    150ms
+    cubic-bezier(0.55, 0, 1, 0.45)
+    forwards;
+}
+
+@keyframes nested-item-close {
+  0% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      translate(var(--item-x), var(--item-y))
+      scale(1);
+  }
+
+  100% {
+    opacity: 0;
+
+    transform:
+      translate(-50%, -50%)
+      translate(0, 0)
+      scale(0.2);
+  }
+}
+
+/* Parent state when expanded */
+.wheel-sector.has-children.children-open .sector-icon {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 0 24px rgba(255, 255, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.wheel-sector.has-children.children-open .sector-label {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sector-indicator {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  vertical-align: middle;
+}
+
+.wheel-connection-line {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.12;
+  transition: opacity 160ms ease;
+}
 .wheel-background {
   position: absolute;
   inset: 0;
