@@ -97,6 +97,7 @@ pub fn load_rust_config() -> Config {
 // ---------------------------------------------------------------------------
 fn default_items() -> Vec<crate::types::Action> {
     use crate::types::{Action, ActionType};
+
     vec![
         Action {
             id: "open-notepad".to_string(),
@@ -106,7 +107,9 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("Open Windows Notepad".to_string()),
+            children: None,
         },
+
         Action {
             id: "open-calc".to_string(),
             name: "Calculator".to_string(),
@@ -115,7 +118,9 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("Open Windows Calculator".to_string()),
+            children: None,
         },
+
         Action {
             id: "open-browser".to_string(),
             name: "Browser".to_string(),
@@ -124,7 +129,9 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("Open default browser".to_string()),
+            children: None,
         },
+
         Action {
             id: "open-explorer".to_string(),
             name: "Explorer".to_string(),
@@ -133,7 +140,9 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("Open Windows Explorer at C:".to_string()),
+            children: None,
         },
+
         Action {
             id: "clipboard-demo".to_string(),
             name: "Clipboard Demo".to_string(),
@@ -142,7 +151,9 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("Run a demo command".to_string()),
+            children: None,
         },
+
         Action {
             id: "ai-menu".to_string(),
             name: "AI".to_string(),
@@ -151,6 +162,7 @@ fn default_items() -> Vec<crate::types::Action> {
             icon: None,
             enabled: true,
             description: Some("AI Tools".to_string()),
+
             children: Some(vec![
                 Action {
                     id: "ai-chatgpt".to_string(),
@@ -159,9 +171,10 @@ fn default_items() -> Vec<crate::types::Action> {
                     target: "https://chatgpt.com".to_string(),
                     icon: None,
                     enabled: true,
-                    description: Some("Open ChatGPT in Chrome".to_string()),
+                    description: Some("Open ChatGPT".to_string()),
                     children: None,
                 },
+
                 Action {
                     id: "ai-claude".to_string(),
                     name: "Claude".to_string(),
@@ -169,9 +182,10 @@ fn default_items() -> Vec<crate::types::Action> {
                     target: "https://claude.ai".to_string(),
                     icon: None,
                     enabled: true,
-                    description: Some("Open Claude in Chrome".to_string()),
+                    description: Some("Open Claude".to_string()),
                     children: None,
                 },
+
                 Action {
                     id: "ai-gemini".to_string(),
                     name: "Gemini".to_string(),
@@ -179,7 +193,7 @@ fn default_items() -> Vec<crate::types::Action> {
                     target: "https://gemini.google.com".to_string(),
                     icon: None,
                     enabled: true,
-                    description: Some("Open Gemini in Chrome".to_string()),
+                    description: Some("Open Gemini".to_string()),
                     children: None,
                 },
             ]),
