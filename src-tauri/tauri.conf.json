@@ -12,9 +12,28 @@
   "app": {
     "windows": [
       {
-        "title": "orbit",
+        "label": "main",
+        "title": "Orbit Settings",
+        "url": "index.html",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": false,
+        "skipTaskbar": true
+      },
+      {
+        "label": "wheel",
+        "title": "Orbit",
+        "url": "index.html#/wheel",
+        "width": 480,
+        "height": 480,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "focus": true
       }
     ],
     "security": {
