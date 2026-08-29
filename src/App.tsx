@@ -4,16 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import "./App.css";
-import { RadialWheel } from "./components/wheel/RadialWheel";
-
-interface Action {
-  id: string;
-  name: string;
-  actionType: string;
-  target: string;
-  icon: string | null;
-  enabled: boolean;
-}
+import { type Action } from "./types/types";
 
 interface AppConfig {
   enabled: boolean;
@@ -24,53 +15,32 @@ interface AppConfig {
   theme: string;
 }
 
-interface WheelState {
-  open: boolean;
-  selectedIndex: number;
-  hoveredIndex: number | null;
-  itemCount: number;
-}
-
-interface OrbitTriggerPayload {
-  x: number;
-  y: number;
-}
-
+/**
+ * Root component for the "main" window — Orbit's settings UI.
+ *
+ * This window is hidden by default (see src-tauri/tauri.conf.json) and
+ * only shown via the tray menu's "Open Settings" item. It has nothing
+ * to do with the radial wheel itself anymore — that lives in its own
+ * always-on-top overlay window (see src/windows/WheelWindow.tsx), so
+ * the wheel can appear over whatever app currently has focus instead of
+ * bringing this window to the front.
+ */
 function App() {
-  const [config, setConfig] =
-    useState<AppConfig>({
-      enabled: true,
+  const [config, setConfig] = useState<AppConfig>({
+    enabled: true,
 
-      // MUST MATCH RUST
-      trigger: "ctrl+space",
+    // MUST MATCH RUST
+    trigger: "ctrl+space",
 
-      radius: 180,
-      deadZone: 60,
-      items: [],
-      theme: "system",
-    });
+    radius: 180,
+    deadZone: 60,
+    items: [],
+    theme: "system",
+  });
 
-  const [wheel, setWheel] =
-    useState<WheelState>({
-      open: false,
-      selectedIndex: -1,
-      hoveredIndex: null,
-      itemCount: 0,
-    });
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
-  // Position where the wheel should appear (screen coordinates)
-  const [wheelPos, setWheelPos] = useState<{x:number;y:number}>({x:0,y:0});
-    
-  const [settingsVisible, setSettingsVisible] =
-    useState(false);
-
-  // ==================================================
-  // ENABLED ITEMS
-  // ==================================================
-
-  const enabledItems = config.items.filter(
-    (item) => item.enabled
-  );
+  const enabledItems = config.items.filter((item) => item.enabled);
 
   // ==================================================
   // LOAD CONFIGURATION
@@ -79,33 +49,15 @@ function App() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        console.log(
-          "[Orbit] Loading configuration..."
-        );
+        console.log("[Orbit] Loading configuration...");
 
-        const result =
-          await invoke<AppConfig>(
-            "load_configuration"
-          );
+        const result = await invoke<AppConfig>("load_configuration");
 
-        console.log(
-          "[Orbit] Configuration:",
-          result
-        );
+        console.log("[Orbit] Configuration:", result);
 
         setConfig(result);
-
-        setWheel((prev) => ({
-          ...prev,
-          itemCount: result.items.filter(
-            (item) => item.enabled
-          ).length,
-        }));
       } catch (error) {
-        console.error(
-          "[Orbit] Failed to load configuration:",
-          error
-        );
+        console.error("[Orbit] Failed to load configuration:", error);
       }
     };
 
@@ -117,318 +69,63 @@ function App() {
   // ==================================================
 
   useEffect(() => {
-    let unlistenTrigger:
-      | (() => void)
-      | undefined;
-
-    let unlistenWheelOpen:
-      | (() => void)
-      | undefined;
-
-    let unlistenWheelClose:
-      | (() => void)
-      | undefined;
-
-    let unlistenActionExecute:
-      | (() => void)
-      | undefined;
-
-    let unlistenEnabledChanged:
-      | (() => void)
-      | undefined;
+    let unlistenEnabledChanged: (() => void) | undefined;
 
     const setupListeners = async () => {
       try {
-        // --------------------------------------------
-        // GLOBAL SHORTCUT
-        // --------------------------------------------
+        unlistenEnabledChanged = await listen<boolean>("tray-enabled-changed", (event) => {
+          setConfig((prev) => ({
+            ...prev,
+            enabled: event.payload,
+          }));
+        });
 
-        unlistenTrigger =
-          await listen<OrbitTriggerPayload>(
-            "orbit-trigger",
-            (event) => {
-              console.log("[Orbit] orbit-trigger received");
-              console.log("[Orbit] Cursor position:", event.payload);
-
-              if (!config.enabled) {
-                console.log("[Orbit] Disabled - ignoring shortcut");
-                return;
-              }
-
-              // Store cursor position for wheel placement
-              setWheelPos({ x: event.payload.x, y: event.payload.y });
-
-              setWheel((prev) => ({
-                ...prev,
-                open: true,
-                selectedIndex: -1,
-                hoveredIndex: null,
-              }));
-            }
-          );
-
-        // --------------------------------------------
-        // WHEEL OPEN
-        // --------------------------------------------
-
-        // wheel-open listener removed (orbit-trigger now handles opening)
-
-        // --------------------------------------------
-        // WHEEL CLOSE
-        // --------------------------------------------
-
-        unlistenWheelClose =
-          await listen(
-            "wheel-close",
-            () => {
-              console.log(
-                "[Orbit] wheel-close"
-              );
-
-              setWheel((prev) => ({
-                ...prev,
-                open: false,
-                selectedIndex: -1,
-                hoveredIndex: null,
-              }));
-            }
-          );
-
-        // --------------------------------------------
-        // ACTION EXECUTE
-        // --------------------------------------------
-
-        unlistenActionExecute =
-          await listen<Action>(
-            "action-execute",
-            async (event) => {
-              const action =
-                event.payload;
-
-              if (!action) {
-                return;
-              }
-
-              console.log(
-                "[Orbit] Executing:",
-                action.name
-              );
-
-              try {
-                await invoke(
-                  "execute_action",
-                  {
-                    action,
-                  }
-                );
-
-                setWheel((prev) => ({
-                  ...prev,
-                  open: false,
-                  selectedIndex: -1,
-                  hoveredIndex: null,
-                }));
-              } catch (error) {
-                console.error(
-                  "[Orbit] Action execution failed:",
-                  error
-                );
-              }
-            }
-          );
-
-        // --------------------------------------------
-        // ENABLED CHANGED
-        // --------------------------------------------
-
-        unlistenEnabledChanged =
-          await listen<boolean>(
-            "tray-enabled-changed",
-            (event) => {
-              setConfig((prev) => ({
-                ...prev,
-                enabled: event.payload,
-              }));
-            }
-          );
-
-        console.log(
-          "[Orbit] All Tauri listeners registered"
-        );
+        console.log("[Orbit] Settings window listeners registered");
       } catch (error) {
-        console.error(
-          "[Orbit] Listener setup failed:",
-          error
-        );
+        console.error("[Orbit] Listener setup failed:", error);
       }
     };
 
     setupListeners();
 
     return () => {
-      unlistenTrigger?.();
-      unlistenWheelOpen?.();
-      unlistenWheelClose?.();
-      unlistenActionExecute?.();
       unlistenEnabledChanged?.();
-
-      console.log(
-        "[Orbit] Tauri listeners cleaned up"
-      );
+      console.log("[Orbit] Settings window listeners cleaned up");
     };
-  }, [config.enabled]);
+  }, []);
 
   // ==================================================
   // TOGGLE ENABLED
   // ==================================================
 
-  const toggleEnabled =
-    useCallback(async () => {
-      const newEnabled =
-        !config.enabled;
+  const toggleEnabled = useCallback(async () => {
+    const newEnabled = !config.enabled;
 
-      try {
-        await invoke(
-          "toggle_enabled",
-          {
-            enabled: newEnabled,
-          }
-        );
+    try {
+      await invoke("toggle_enabled", {
+        enabled: newEnabled,
+      });
 
-        setConfig((prev) => ({
-          ...prev,
-          enabled: newEnabled,
-        }));
-      } catch (error) {
-        console.error(
-          "[Orbit] Toggle failed:",
-          error
-        );
-      }
-    }, [config.enabled]);
+      setConfig((prev) => ({
+        ...prev,
+        enabled: newEnabled,
+      }));
+    } catch (error) {
+      console.error("[Orbit] Toggle failed:", error);
+    }
+  }, [config.enabled]);
 
   // ==================================================
   // SETTINGS
   // ==================================================
 
-  const openSettings =
-    useCallback(() => {
-      setSettingsVisible(true);
-    }, []);
+  const openSettings = useCallback(() => {
+    setSettingsVisible(true);
+  }, []);
 
-  const closeSettings =
-    useCallback(() => {
-      setSettingsVisible(false);
-    }, []);
-
-  // ==================================================
-  // SELECT WHEEL ITEM
-  // ==================================================
-
-  const handleItemSelect =
-    useCallback(
-      async (index: number) => {
-        // IMPORTANT:
-        // Use enabledItems instead of config.items
-        // because RadialWheel displays enabledItems.
-
-        const item =
-          enabledItems[index];
-
-        if (!item) {
-          console.warn(
-            "[Orbit] Invalid wheel index:",
-            index
-          );
-
-          return;
-        }
-
-        console.log(
-          "[Orbit] Selected:",
-          item.name
-        );
-
-        try {
-          await invoke(
-            "execute_action",
-            {
-              action: item,
-            }
-          );
-
-          setWheel((prev) => ({
-            ...prev,
-            open: false,
-            selectedIndex: -1,
-            hoveredIndex: null,
-          }));
-        } catch (error) {
-          console.error(
-            "[Orbit] Failed to execute action:",
-            error
-          );
-        }
-      },
-      [enabledItems]
-    );
-
-  // ==================================================
-  // HOVER
-  // ==================================================
-
-  const handleItemHover =
-    useCallback(
-      (index: number | null) => {
-        setWheel((prev) => ({
-          ...prev,
-          hoveredIndex: index,
-        }));
-      },
-      []
-    );
-
-  // ==================================================
-  // CLOSE WHEEL
-  // ==================================================
-
-  const closeWheel =
-    useCallback(() => {
-      setWheel((prev) => ({
-        ...prev,
-        open: false,
-        selectedIndex: -1,
-        hoveredIndex: null,
-      }));
-    }, []);
-
-  // ==================================================
-  // ESCAPE
-  // ==================================================
-
-  useEffect(() => {
-    const handleKeyDown =
-      (event: KeyboardEvent) => {
-        if (
-          event.key === "Escape" &&
-          wheel.open
-        ) {
-          closeWheel();
-        }
-      };
-
-    document.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
-
-    return () => {
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-    };
-  }, [wheel.open, closeWheel]);
+  const closeSettings = useCallback(() => {
+    setSettingsVisible(false);
+  }, []);
 
   // ==================================================
   // RENDER
@@ -436,7 +133,6 @@ function App() {
 
   return (
     <main className="container">
-
       {/* ========================================= */}
       {/* APP INFO                                  */}
       {/* ========================================= */}
@@ -444,92 +140,20 @@ function App() {
       <div className="orbit-info">
         <h2>Orbit</h2>
 
+        <p>Radial utility launcher</p>
+
         <p>
-          Radial utility launcher
+          Trigger: <strong>Ctrl + Space</strong>
         </p>
 
         <p>
-          Trigger:{" "}
-          <strong>
-            Ctrl + Space
-          </strong>
+          Status: <strong>{config.enabled ? "Enabled" : "Disabled"}</strong>
         </p>
 
-        <p>
-          Status:{" "}
-          <strong>
-            {config.enabled
-              ? "Enabled"
-              : "Disabled"}
-          </strong>
-        </p>
+        <button onClick={openSettings}>Open Settings</button>
 
-        <button
-          onClick={openSettings}
-        >
-          Open Settings
-        </button>
-
-        <button
-          onClick={toggleEnabled}
-        >
-          {config.enabled
-            ? "Disable Orbit"
-            : "Enable Orbit"}
-        </button>
+        <button onClick={toggleEnabled}>{config.enabled ? "Disable Orbit" : "Enable Orbit"}</button>
       </div>
-
-      {/* ========================================= */}
-      {/* RADIAL WHEEL                              */}
-      {/* ========================================= */}
-
-      {wheel.open && (
-        <div
-          style={{
-            position: "fixed",
-            left: wheelPos.x - config.radius,
-            top: wheelPos.y - config.radius,
-            width: config.radius * 2,
-            height: config.radius * 2,
-            pointerEvents: "auto",
-            // The wheel component expects its own radius/size, so we let it render full size
-          }}
-        >
-          <RadialWheel
-            items={enabledItems.map(
-              (item) => ({
-                id: item.id,
-                name: item.name,
-                type: item.actionType,
-                target: item.target,
-                icon:
-                  item.icon ??
-                  "/orbit-icon.png",
-                enabled: item.enabled,
-              })
-            )}
-            selectedIndex={
-              wheel.selectedIndex
-            }
-            hoveredIndex={
-              wheel.hoveredIndex
-            }
-            onItemSelect={
-              handleItemSelect
-            }
-            onItemHover={
-              handleItemHover
-            }
-            onClose={closeWheel}
-            radius={config.radius}
-            deadZone={
-              config.deadZone
-            }
-            showCenter={true}
-            centerIcon="x"
-          />
-        </div>
-      )}
 
       {/* ========================================= */}
       {/* SETTINGS                                  */}
@@ -538,59 +162,34 @@ function App() {
       {settingsVisible && (
         <div className="settings-overlay">
           <div className="settings-window">
-
             <div className="settings-header">
-              <h2>
-                Orbit Settings
-              </h2>
+              <h2>Orbit Settings</h2>
 
-              <button
-                onClick={
-                  closeSettings
-                }
-                aria-label="Close settings"
-              >
+              <button onClick={closeSettings} aria-label="Close settings">
                 ✕
               </button>
             </div>
 
             <div className="settings-content">
-
               <p>
-                Current trigger:{" "}
-                <strong>
-                  Ctrl + Space
-                </strong>
+                Current trigger: <strong>Ctrl + Space</strong>
               </p>
 
               <p>
-                Radius:{" "}
-                <strong>
-                  {config.radius}px
-                </strong>
+                Radius: <strong>{config.radius}px</strong>
               </p>
 
               <p>
-                Dead zone:{" "}
-                <strong>
-                  {config.deadZone}px
-                </strong>
+                Dead zone: <strong>{config.deadZone}px</strong>
               </p>
 
               <p>
-                Total actions:{" "}
-                <strong>
-                  {config.items.length}
-                </strong>
+                Total actions: <strong>{config.items.length}</strong>
               </p>
 
               <p>
-                Enabled actions:{" "}
-                <strong>
-                  {enabledItems.length}
-                </strong>
+                Enabled actions: <strong>{enabledItems.length}</strong>
               </p>
-
             </div>
           </div>
         </div>
