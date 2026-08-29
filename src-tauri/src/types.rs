@@ -21,6 +21,8 @@ pub struct Action {
     pub icon: Option<String>,
     pub enabled: bool,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<Action>>,
 }
 
 impl Default for Action {
@@ -33,6 +35,7 @@ impl Default for Action {
             icon: None,
             enabled: true,
             description: None,
+            children: None,
         }
     }
 }
