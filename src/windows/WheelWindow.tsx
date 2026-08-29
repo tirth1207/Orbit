@@ -103,7 +103,85 @@ export function WheelWindow() {
     });
   }, []);
 
-  const enabledItems = (config?.items ?? []).filter((item) => item.enabled);
+  const defaultMockItems: Action[] = [
+    {
+      id: "ai",
+      name: "AI",
+      type: "URL",
+      target: "https://chatgpt.com",
+      icon: null,
+      enabled: true,
+      children: [
+        {
+          id: "chatgpt",
+          name: "ChatGPT",
+          type: "URL",
+          target: "https://chatgpt.com",
+          icon: null,
+          enabled: true,
+        },
+        {
+          id: "claude",
+          name: "Claude",
+          type: "URL",
+          target: "https://claude.ai",
+          icon: null,
+          enabled: true,
+        },
+        {
+          id: "gemini",
+          name: "Gemini",
+          type: "URL",
+          target: "https://gemini.google.com",
+          icon: null,
+          enabled: true,
+        },
+        {
+          id: "grok",
+          name: "Grok",
+          type: "URL",
+          target: "https://x.ai",
+          icon: null,
+          enabled: true,
+        },
+        {
+          id: "perplexity",
+          name: "Perplexity",
+          type: "URL",
+          target: "https://www.perplexity.ai",
+          icon: null,
+          enabled: true,
+        },
+        {
+          id: "copilot",
+          name: "Copilot",
+          type: "URL",
+          target: "https://copilot.microsoft.com",
+          icon: null,
+          enabled: true,
+        },
+      ],
+    },
+    {
+      id: "open-browser",
+      name: "Browser",
+      type: "URL",
+      target: "https://www.google.com",
+      icon: null,
+      enabled: true,
+    },
+    {
+      id: "open-calc",
+      name: "Calculator",
+      type: "Application",
+      target: "calc.exe",
+      icon: null,
+      enabled: true,
+    },
+  ];
+
+  const rawItems = (config?.items && config.items.length > 0) ? config.items : defaultMockItems;
+  const enabledItems = rawItems.filter((item) => item.enabled);
 
   const handleItemSelect = useCallback(
     async (index: number, childIndex?: number) => {

@@ -72,6 +72,11 @@ pub fn execute_action(action: Action) -> Result<(), String> {
         return Err("Action target is empty".to_string());
     }
 
+    if action.r#type == ActionType::URL || target.starts_with("http://") || target.starts_with("https://") {
+        open::that(target).map_err(|e| format!("Failed to open URL in browser: {}", e))?;
+        return Ok(());
+    }
+
     use std::process::Command;
     let parts: Vec<&str> = target.split_whitespace().collect();
     if parts.is_empty() {
