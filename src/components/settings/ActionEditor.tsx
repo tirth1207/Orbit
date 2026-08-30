@@ -29,7 +29,6 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
     description: "",
     args: "",
     workingDirectory: "",
-    shortcut: "",
     children: [],
   });
 
@@ -42,7 +41,6 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
         description: action.description || "",
         args: action.args || "",
         workingDirectory: action.workingDirectory || "",
-        shortcut: action.shortcut || "",
         children: action.children || [],
       });
     } else {
@@ -56,7 +54,6 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
         description: "",
         args: "",
         workingDirectory: "",
-        shortcut: "",
         children: [],
       });
     }
@@ -120,7 +117,6 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
         setFormData((prev) => ({
           ...prev,
           target: selected,
-          // Auto fill name if empty
           name: prev.name || selected.split(/[/\\]/).pop() || "",
         }));
       }
@@ -194,16 +190,15 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
                 <option value="command">System Command</option>
                 <option value="folder">Filesystem Folder</option>
                 <option value="file">File</option>
-                <option value="shortcut">Keyboard Shortcut</option>
                 <option value="menu">Nested Menu (Parent)</option>
               </select>
             </div>
 
             {/* TARGET FIELDS BASED ON TYPE */}
-            {type !== "menu" && type !== "shortcut" && (
+            {type !== "menu" && (
               <div className="orbit-form-field">
                 <label htmlFor="action-target">
-                  {type === "application" && "Application Path"}
+                  {type === "application" && "Application Executable Path"}
                   {type === "url" && "Website URL"}
                   {type === "command" && "Command"}
                   {type === "folder" && "Folder Path"}
@@ -223,7 +218,7 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
                         : type === "folder"
                         ? "C:\\Users\\...\\Projects"
                         : type === "command"
-                        ? "wt or cmd /C echo hello"
+                        ? "wt or echo hello"
                         : "Path to file"
                     }
                     value={formData.target}
@@ -264,7 +259,7 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
                   id="action-args"
                   type="text"
                   className="orbit-input"
-                  placeholder="--new-window or -v"
+                  placeholder='--new-window --profile-directory="My Profile"'
                   value={formData.args}
                   onChange={(e) => setFormData({ ...formData, args: e.target.value })}
                 />
@@ -282,21 +277,6 @@ export const ActionEditor: React.FC<ActionEditorProps> = ({
                   placeholder="C:\Projects"
                   value={formData.workingDirectory}
                   onChange={(e) => setFormData({ ...formData, workingDirectory: e.target.value })}
-                />
-              </div>
-            )}
-
-            {/* SHORTCUT INPUT */}
-            {type === "shortcut" && (
-              <div className="orbit-form-field">
-                <label htmlFor="action-shortcut">Key Combination</label>
-                <input
-                  id="action-shortcut"
-                  type="text"
-                  className="orbit-input"
-                  placeholder="Ctrl + Shift + C"
-                  value={formData.shortcut}
-                  onChange={(e) => setFormData({ ...formData, shortcut: e.target.value })}
                 />
               </div>
             )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
@@ -49,9 +49,10 @@ function App() {
   const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
 
-  // Deep comparison check for unsaved changes
-  const hasUnsavedChanges =
-    JSON.stringify(config) !== JSON.stringify(dirtyConfig);
+  // Track dirty state via Ref so event listeners registered once don't re-trigger unnecessarily
+  const hasUnsavedChanges = JSON.stringify(config) !== JSON.stringify(dirtyConfig);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  hasUnsavedChangesRef.current = hasUnsavedChanges;
 
   // ==================================================
   // LOAD CONFIGURATION
@@ -74,7 +75,7 @@ function App() {
   }, [loadConfig]);
 
   // ==================================================
-  // TAURI EVENT LISTENERS
+  // TAURI EVENT LISTENERS (REGISTERED ONCE)
   // ==================================================
 
   useEffect(() => {
@@ -86,7 +87,9 @@ function App() {
         unlistenConfig = await listen<AppConfig>("orbit-config-changed", (event) => {
           console.log("[Orbit App] Configuration updated live:", event.payload);
           setConfig(event.payload);
-          setDirtyConfig((prev) => (hasUnsavedChanges ? prev : event.payload));
+          if (!hasUnsavedChangesRef.current) {
+            setDirtyConfig(event.payload);
+          }
         });
 
         unlistenEnabled = await listen<boolean>("tray-enabled-changed", (event) => {
@@ -104,7 +107,7 @@ function App() {
       unlistenConfig?.();
       unlistenEnabled?.();
     };
-  }, [hasUnsavedChanges]);
+  }, []);
 
   // ==================================================
   // SAVE CONFIGURATION

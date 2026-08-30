@@ -4,7 +4,6 @@ export type ActionType =
   | "command"
   | "folder"
   | "file"
-  | "shortcut"
   | "menu";
 
 export interface Action {
@@ -17,7 +16,6 @@ export interface Action {
   description?: string;
   args?: string;
   workingDirectory?: string;
-  shortcut?: string;
   children?: Action[];
 }
 
@@ -31,7 +29,6 @@ export interface RadialWheelItem {
   description?: string;
   args?: string;
   workingDirectory?: string;
-  shortcut?: string;
   children?: RadialWheelItem[];
 }
 
