@@ -154,7 +154,7 @@ function App() {
 
         <button onClick={toggleEnabled}>{config.enabled ? "Disable Orbit" : "Enable Orbit"}</button>
       </div>
-
+      
       {/* ========================================= */}
       {/* SETTINGS                                  */}
       {/* ========================================= */}
