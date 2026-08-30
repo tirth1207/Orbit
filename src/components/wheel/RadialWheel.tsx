@@ -7,6 +7,7 @@ import React, {
 } from "react";
 
 import { type WheelItemProps } from "../../types/types";
+import "./RadialWheel.css";
 
 interface RadialWheelProps {
   items: WheelItemProps[];
