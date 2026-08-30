@@ -1,0 +1,1406 @@
+/* =========================================================
+   ORBIT — RADIAL WHEEL
+   Faded-glass light surface, single blue accent,
+   concentric primary/nested ring hierarchy.
+   ========================================================= */
+
+.radial-wheel {
+  /* ---------------------------------------------------------
+     DESIGN TOKENS
+     All colors and shadows are declared once, here, and
+     referenced everywhere below. Nothing else in this file
+     should contain a raw color value.
+     --------------------------------------------------------- */
+
+  --wheel-surface: rgba(255, 255, 255, 0.512);
+
+  --wheel-border-soft: rgba(30, 41, 59);
+  --wheel-border-strong: rgba(30, 41, 59, 0.16);
+
+  --wheel-primary: #4c8dff;
+  --wheel-primary-strong: #2f6fe0;
+  --wheel-primary-tint: rgba(0, 94, 255, 0.638);
+  --wheel-primary-tint-strong: rgb(0, 94, 255);
+  --wheel-primary-border: rgba(0, 94, 255,0.12);
+
+  --wheel-text: #1c2532;
+  --wheel-text-soft: #5b6673;
+  --wheel-text-faint: rgba(28, 37, 50, 0.45);
+
+  --wheel-shadow-ambient: 0 22px 46px rgba(15, 23, 42, 0.809);
+  --wheel-shadow-contact: 0 3px 12px rgba(15, 23, 42);
+  --wheel-shadow-highlight: inset 0 1px 0 rgb(1, 0, 0);
+
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  user-select: none;
+  -webkit-user-select: none;
+
+  outline: none;
+  overflow: visible;
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "SF Pro Text",
+    "Segoe UI",
+    sans-serif;
+
+  color: var(--wheel-text);
+
+  isolation: isolate;
+
+  opacity: 0;
+  transform: scale(0.94);
+
+  transition:
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radial-wheel.is-mounted {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.radial-wheel.is-dragging {
+  cursor: grabbing;
+}
+
+
+/* =========================================================
+   MAIN WHEEL BACKGROUND (DONUT SURFACE)
+   Faded-white frosted glass. Same center as every ring below:
+   left: 50%, top: 50%, translate(-50%, -50%).
+   ========================================================= */
+
+.radial-wheel .wheel-background {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: calc(var(--wheel-radius) * 2);
+  height: calc(var(--wheel-radius) * 2);
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  background: var(--wheel-surface);
+
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+
+  border: 1px solid var(--wheel-border-soft);
+
+  box-shadow:
+    var(--wheel-shadow-ambient),
+    var(--wheel-shadow-contact),
+    var(--wheel-shadow-highlight);
+
+  pointer-events: none;
+
+  z-index: 1;
+
+  overflow: hidden;
+
+  /* Donut hole mask - keeps center area completely transparent */
+  mask-image: radial-gradient(
+    circle at center,
+    transparent var(--wheel-dead-zone),
+    black calc(var(--wheel-dead-zone) + 0.5px)
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at center,
+    transparent var(--wheel-dead-zone),
+    black calc(var(--wheel-dead-zone) + 0.5px)
+  );
+}
+
+
+/* =========================================================
+   GENERIC WHEEL RING
+   ========================================================= */
+
+.radial-wheel .wheel-ring {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  pointer-events: none;
+
+  box-sizing: border-box;
+
+  background: transparent;
+
+  z-index: 3;
+}
+
+
+/* =========================================================
+   OUTER RING
+   Boundary of the primary wheel.
+   ========================================================= */
+
+.radial-wheel .wheel-ring-outer {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: calc(var(--wheel-radius) * 2);
+  height: calc(var(--wheel-radius) * 2);
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  box-sizing: border-box;
+
+  border: 1px solid var(--wheel-border-strong);
+
+  background: transparent;
+
+  pointer-events: none;
+
+  z-index: 3;
+}
+
+
+/* =========================================================
+   INNER RING (DONUT HOLE BOUNDARY)
+   Tinted with the primary color to read as the
+   interactive dead-zone boundary.
+   ========================================================= */
+
+.radial-wheel .wheel-ring-inner {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: calc(var(--wheel-dead-zone) * 2);
+  height: calc(var(--wheel-dead-zone) * 2);
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  box-sizing: border-box;
+
+  border: 1px solid var(--wheel-primary-border);
+
+  background: transparent;
+
+  box-shadow: none;
+
+  pointer-events: none;
+
+  z-index: 4;
+}
+
+
+/* =========================================================
+   NESTED RING GUIDE
+   A second ring, concentric with the primary wheel
+   (same left: 50% / top: 50% / translate(-50%, -50%) center),
+   drawn at a LARGER radius via --nested-wheel-radius.
+   This is what the submenu items sit on.
+   ========================================================= */
+
+.radial-wheel .nested-wheel-ring {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+ 
+  width: calc(var(--nested-wheel-radius) * 2.5);
+  height: calc(var(--nested-wheel-radius) * 2.5);
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  box-sizing: border-box;
+
+  border: 1px solid var(--wheel-primary-border);
+
+  background: var(--wheel-surface);
+
+
+  pointer-events: none;
+
+  z-index: 2;
+
+  opacity: 0;
+
+  animation: nested-ring-fade-in 220ms ease forwards;
+}
+
+.radial-wheel .nested-wheel-ring.is-closing {
+  animation: nested-ring-fade-out 160ms ease forwards;
+}
+
+@keyframes nested-ring-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nested-ring-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   SVG WEDGE LAYER
+   ========================================================= */
+
+.radial-wheel .wheel-wedge-layer {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: calc(var(--wheel-radius) * 2);
+  height: calc(var(--wheel-radius) * 2);
+
+  transform: translate(-50%, -50%);
+
+  overflow: visible;
+
+  pointer-events: none;
+
+  z-index: 5;
+}
+
+
+/* =========================================================
+   WEDGE STYLES
+   ========================================================= */
+
+.radial-wheel .wheel-wedge {
+  fill: transparent;
+
+  stroke: var(--wheel-border-soft);
+
+  stroke-width: 1;
+
+  vector-effect: non-scaling-stroke;
+
+  pointer-events: none;
+
+  transition:
+    fill 180ms ease,
+    stroke 180ms ease;
+}
+
+.radial-wheel .wheel-wedge.is-hovered,
+.radial-wheel .wheel-wedge.is-selected {
+  fill: var(--wheel-primary-tint);
+
+  stroke: var(--wheel-primary-border);
+
+  stroke-width: 1;
+}
+
+
+/* =========================================================
+   CONNECTION LINES
+   ========================================================= */
+
+.radial-wheel .wheel-connection-line {
+  stroke: var(--wheel-primary-border);
+
+  stroke-width: 1;
+
+  opacity: 0.5;
+
+  pointer-events: none;
+
+  transition: opacity 160ms ease;
+}
+
+
+/* =========================================================
+   DRAG GUIDE LINE
+   Radiates from the shared center at --guide-angle for
+   --guide-length px while the user is dragging.
+   ========================================================= */
+
+.radial-wheel .wheel-guide-line {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: var(--guide-length, 0px);
+  height: 2px;
+
+  transform-origin: 0% 50%;
+
+  transform:
+    translate(0, -50%)
+    rotate(var(--guide-angle, 0deg));
+
+  background: linear-gradient(
+    90deg,
+    var(--wheel-primary-tint-strong),
+    transparent
+  );
+
+  border-radius: 2px;
+
+  pointer-events: none;
+
+  z-index: 6;
+
+  opacity: 0.9;
+}
+
+
+/* =========================================================
+   SECTORS CONTAINER
+   ========================================================= */
+
+.radial-wheel .wheel-sectors {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 100%;
+  height: 100%;
+
+  transform: translate(-50%, -50%);
+
+  pointer-events: none;
+
+  z-index: 12;
+}
+
+
+/* =========================================================
+   PRIMARY ITEMS
+   ========================================================= */
+
+.radial-wheel .wheel-sector {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 78px;
+  height: 78px;
+
+  margin: 0;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none !important;
+  outline: none;
+
+  background: transparent !important;
+
+  color: var(--wheel-text);
+
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  transform:
+    translate(-50%, -50%)
+    translate(var(--item-x), var(--item-y));
+
+  transform-origin: center;
+
+  box-shadow: none !important;
+
+  z-index: 12;
+
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 160ms ease;
+}
+
+
+/* =========================================================
+   CIRCULAR HOVER GLOW BEHIND ICON
+   ========================================================= */
+
+.radial-wheel .wheel-sector::before {
+  content: "";
+
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 64px;
+  height: 64px;
+
+  transform: translate(-50%, -50%) ;
+
+  border-radius: 50%;
+
+  background: transparent;
+
+  border: 1px solid transparent;
+
+  box-shadow: none;
+
+  z-index: -1;
+
+  opacity: 0;
+
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease,
+    background 180ms ease,
+    border 180ms ease;
+
+  pointer-events: none;
+}
+
+.radial-wheel .wheel-sector:hover::before,
+.radial-wheel .wheel-sector.hovered::before,
+.radial-wheel .wheel-sector.selected::before {
+  opacity: 1;
+
+  transform: translate(-50%, -50%) scale(1);
+
+  background: var(--wheel-primary-tint);
+
+  border: 1px solid var(--wheel-primary-border);
+
+  box-shadow: 0 10px 24px var(--wheel-primary-tint-strong);
+}
+
+
+/* =========================================================
+   ITEM CONTENT
+   ========================================================= */
+
+.radial-wheel .wheel-sector .sector-content {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  pointer-events: none;
+
+  background: transparent !important;
+
+  box-shadow: none !important;
+
+  border: none !important;
+}
+
+
+/* =========================================================
+   ICON
+   ========================================================= */
+
+.radial-wheel .wheel-sector .sector-icon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  background: transparent !important;
+
+  border: none !important;
+
+
+  box-shadow: none !important;
+
+  filter: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.16));
+
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 180ms ease;
+}
+
+.radial-wheel .wheel-sector .sector-icon img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  display: block;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  user-select: none;
+
+  pointer-events: none;
+}
+
+
+/* Fallback Icon */
+
+.radial-wheel .wheel-sector .sector-icon-fallback {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 0;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+
+  color: var(--wheel-text);
+
+  font-size: 20px;
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   LABEL
+   ========================================================= */
+
+.radial-wheel .wheel-sector .sector-label {
+  max-width: 90px;
+
+  color: var(--wheel-text-soft);
+
+  font-size: 11px;
+
+  font-weight: 500;
+
+  line-height: 1.15;
+
+  text-align: center;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  pointer-events: none;
+
+  background: transparent !important;
+
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+
+  transition:
+    color 160ms ease,
+    text-shadow 160ms ease;
+}
+
+
+/* =========================================================
+   HOVER ITEM STYLES
+   ========================================================= */
+
+.radial-wheel .wheel-sector:hover,
+.radial-wheel .wheel-sector.hovered,
+.radial-wheel .wheel-sector.selected {
+  --hover-scale: 1.08;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+}
+
+.radial-wheel .wheel-sector:hover .sector-icon,
+.radial-wheel .wheel-sector.hovered .sector-icon,
+.radial-wheel .wheel-sector.selected .sector-icon {
+  transform: scale(1.08);
+
+  filter:
+    drop-shadow(0 0 10px var(--wheel-primary-tint-strong))
+    drop-shadow(0 3px 7px rgba(15, 23, 42, 0.14));
+}
+
+.radial-wheel .wheel-sector:hover .sector-label,
+.radial-wheel .wheel-sector.hovered .sector-label,
+.radial-wheel .wheel-sector.selected .sector-label {
+  color: var(--wheel-primary-strong);
+
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+
+/* =========================================================
+   CHILD OPEN
+   ========================================================= */
+
+.radial-wheel
+.wheel-sector.has-children.children-open
+.sector-icon {
+  transform: scale(1.08);
+
+  filter:
+    drop-shadow(0 0 10px var(--wheel-primary-tint-strong))
+    drop-shadow(0 3px 7px rgba(15, 23, 42, 0.14));
+}
+
+.radial-wheel
+.wheel-sector.has-children.children-open
+.sector-label {
+  color: var(--wheel-primary-strong);
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   NESTED WHEEL
+   Shares the exact same center as the primary wheel.
+   Items are positioned (in RadialWheel.tsx) at a fixed
+   radius from that center — --nested-wheel-radius — so
+   the submenu forms a true concentric ring rather than a
+   cluster around the parent item.
+   ========================================================= */
+
+.radial-wheel .nested-wheel {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 100%;
+  height: 100%;
+
+  transform: translate(-50%, -50%);
+
+  pointer-events: none;
+
+  z-index: 20;
+
+  overflow: visible;
+}
+
+
+/* =========================================================
+   NESTED ITEMS
+   ========================================================= */
+
+.radial-wheel .nested-wheel .nested-sector {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 68px;
+  height: 68px;
+
+  min-width: 68px;
+  min-height: 68px;
+
+  margin: 0;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none !important;
+  outline: none;
+
+  background: transparent !important;
+
+  box-shadow: none !important;
+
+  color: var(--wheel-text);
+
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  overflow: visible;
+
+  opacity: 0;
+
+  transform:
+    translate(-50%, -50%)
+    translate(0, 0)
+    scale(0.25);
+
+  animation:
+    nested-item-open
+    380ms
+    cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+
+  animation-delay: var(--nested-stagger-delay, 0ms);
+}
+
+.radial-wheel .nested-wheel .nested-sector::before {
+  content: "";
+
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 56px;
+  height: 56px;
+
+  transform: translate(-50%, -50%) scale(0.85);
+
+  /* border-radius: 50%; */
+
+  background: transparent;
+
+  border: 1px solid transparent;
+
+  box-shadow: none;
+
+  z-index: -1;
+
+  opacity: 0;
+
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease,
+    background 180ms ease,
+    border 180ms ease;
+
+  pointer-events: none;
+}
+
+.radial-wheel .nested-wheel .nested-sector:hover::before,
+.radial-wheel .nested-wheel .nested-sector.hovered::before {
+  opacity: 1;
+
+  transform: translate(-50%, -50%) scale(1);
+
+  background: var(--wheel-primary-tint);
+
+  border: 1px solid var(--wheel-primary-border);
+
+  box-shadow: 0 10px 24px var(--wheel-primary-tint-strong);
+}
+
+
+/* =========================================================
+   NESTED ITEM CONTENT
+   ========================================================= */
+
+.radial-wheel .nested-wheel .sector-content {
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 5px;
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   NESTED OPEN ANIMATION
+   ========================================================= */
+
+@keyframes nested-item-open {
+  0% {
+    opacity: 0;
+
+    transform:
+      translate(-50%, -50%)
+      translate(0, 0)
+      scale(0.25);
+  }
+
+  65% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      translate(var(--item-x), var(--item-y))
+      scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      translate(var(--item-x), var(--item-y))
+      scale(var(--hover-scale, 1));
+  }
+}
+
+
+/* =========================================================
+   NESTED CLOSE
+   ========================================================= */
+
+.radial-wheel .nested-wheel.is-closing .nested-sector {
+  pointer-events: none;
+
+  animation:
+    nested-item-close
+    170ms
+    cubic-bezier(0.55, 0, 1, 0.45)
+    forwards;
+}
+
+@keyframes nested-item-close {
+  0% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      translate(var(--item-x), var(--item-y))
+      scale(1);
+  }
+
+  100% {
+    opacity: 0;
+
+    transform:
+      translate(-50%, -50%)
+      translate(0, 0)
+      scale(0.25);
+  }
+}
+
+
+/* =========================================================
+   NESTED ICON
+   ========================================================= */
+
+.radial-wheel .nested-wheel .sector-icon {
+  width: 42px;
+  height: 42px;
+
+  flex: 0 0 42px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 0;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  filter: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.16));
+
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 180ms ease;
+}
+
+.radial-wheel .nested-wheel .sector-icon img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  border-radius: 0;
+}
+
+
+/* =========================================================
+   NESTED LABEL
+   ========================================================= */
+
+.radial-wheel .nested-wheel .sector-label {
+  max-width: 76px;
+
+  color: var(--wheel-text-soft);
+
+  font-size: 10px;
+
+  font-weight: 500;
+
+  line-height: 1.15;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  background: transparent !important;
+
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+
+  transition: color 160ms ease;
+}
+
+
+/* =========================================================
+   NESTED HOVER
+   ========================================================= */
+
+.radial-wheel
+.nested-wheel
+.nested-sector:hover,
+.radial-wheel
+.nested-wheel
+.nested-sector.hovered {
+  --hover-scale: 1.10;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+}
+
+.radial-wheel
+.nested-wheel
+.nested-sector:hover
+.sector-icon,
+.radial-wheel
+.nested-wheel
+.nested-sector.hovered
+.sector-icon {
+  transform: scale(1.08);
+
+  filter:
+    drop-shadow(0 0 10px var(--wheel-primary-tint-strong))
+    drop-shadow(0 3px 7px rgba(15, 23, 42, 0.14));
+}
+
+.radial-wheel
+.nested-wheel
+.nested-sector:hover
+.sector-label,
+.radial-wheel
+.nested-wheel
+.nested-sector.hovered
+.sector-label {
+  color: var(--wheel-primary-strong);
+}
+
+
+/* =========================================================
+   CENTER HOLE / CENTER BUTTON
+   Must be transparent visually while retaining functionality
+   ========================================================= */
+
+.radial-wheel .wheel-center {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  color: var(--wheel-text-soft);
+
+  z-index: 30;
+
+  background: transparent !important;
+
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  pointer-events: auto;
+
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 180ms ease;
+}
+
+.radial-wheel .wheel-center::before,
+.radial-wheel .wheel-center::after {
+  display: none !important;
+
+  content: none !important;
+}
+
+.radial-wheel .wheel-center:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+
+  color: var(--wheel-primary-strong);
+
+  box-shadow: none !important;
+}
+
+.radial-wheel .center-icon {
+  position: relative;
+
+  z-index: 1;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 100%;
+
+  color: inherit;
+
+  font-size: 15px;
+
+  font-weight: 500;
+
+  line-height: 1;
+
+  transition: color 180ms ease;
+}
+
+
+/* =========================================================
+   CHILD INDICATOR
+   ========================================================= */
+
+.radial-wheel .sector-indicator {
+  margin-left: 3px;
+
+  color: var(--wheel-primary);
+
+  font-size: 9px;
+
+  opacity: 0.85;
+}
+
+
+/* =========================================================
+   DISABLED
+   ========================================================= */
+
+.radial-wheel .wheel-sector.disabled,
+.radial-wheel .nested-sector.disabled {
+  opacity: 0.38;
+
+  filter: grayscale(0.35);
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   IMPORTANT OVERRIDES
+   Prevent old CSS from creating item cards.
+   ========================================================= */
+
+.radial-wheel .wheel-sector,
+.radial-wheel .wheel-sector:hover,
+.radial-wheel .wheel-sector.hovered,
+.radial-wheel .wheel-sector.selected,
+.radial-wheel .nested-sector,
+.radial-wheel .nested-sector:hover,
+.radial-wheel .nested-wheel .nested-sector.hovered {
+  background-color: transparent !important;
+
+  background-image: none !important;
+
+  border-color: transparent !important;
+
+  box-shadow: none !important;
+}
+
+
+/* =========================================================
+   VISUALLY HIDDEN (screen-reader only status text)
+   ========================================================= */
+
+.radial-wheel .sr-only {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+
+  clip: rect(0, 0, 0, 0);
+
+  white-space: nowrap;
+
+  border: 0;
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .radial-wheel,
+  .radial-wheel .wheel-sector,
+  .radial-wheel .nested-sector,
+  .radial-wheel .wheel-center,
+  .radial-wheel .nested-wheel-ring,
+  .radial-wheel .wheel-guide-line {
+    transition: none;
+    animation: none;
+  }
+
+  .radial-wheel {
+    opacity: 1;
+    transform: none;
+  }
+
+  .radial-wheel .nested-wheel-ring {
+    opacity: 1;
+  }
+}
+
+/* ==========================================================
+   OUTER RING HOVER SECTOR
+   ========================================================== */
+
+.radial-wheel .wheel-outer-wedge {
+  fill: var(--wheel-primary-tint);
+
+  stroke: rgba(0, 0, 0, 0.206);
+  stroke-width: 1px;
+  border-radius: 20px;
+  opacity: 0;
+
+  transform-origin: center;
+  transform-box: fill-box;
+
+  pointer-events: none;
+
+  filter:
+    drop-shadow(
+      0 0 10px
+      rgba(59, 130, 246, 0.08)
+    );
+
+  transition:
+    opacity 180ms ease,
+    fill 180ms ease,
+    stroke 180ms ease,
+    filter 180ms ease;
+}
+
+
+/* ==========================================================
+   ACTIVE OUTER SECTOR
+   ========================================================== */
+
+.radial-wheel.is-mounted
+  .wheel-outer-wedge {
+  opacity: 1;
+}
+
+
+/* ==========================================================
+   STRONGER HOVER STATE
+   ========================================================== */
+
+.radial-wheel.is-dragging
+  .wheel-outer-wedge {
+  fill: rgba(59, 130, 246, 0.15);
+
+  stroke: rgba(59, 130, 246, 0.40);
+
+  filter:
+    drop-shadow(
+      0 0 14px
+      rgba(59, 130, 246, 0.14)
+    );
+}
+
+
+/* ==========================================================
+   REMOVE CIRCULAR HOVER BUBBLE FROM SECTOR ICON
+   Keep the radial sector/wedge highlight, but remove the
+   blue circular background/glow around the icon.
+   ========================================================== */
+
+.radial-wheel .wheel-sector.hovered .sector-icon,
+.radial-wheel .wheel-sector.selected .sector-icon,
+.radial-wheel .wheel-sector.children-open .sector-icon {
+  background: transparent !important;
+  background-color: transparent !important;
+
+  border: none !important;
+  box-shadow: none !important;
+
+  filter: none !important;
+
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* ==========================================================
+   REMOVE ANY PSEUDO-ELEMENT CIRCLE
+   ========================================================== */
+
+.radial-wheel .wheel-sector.hovered .sector-icon::before,
+.radial-wheel .wheel-sector.hovered .sector-icon::after,
+.radial-wheel .wheel-sector.selected .sector-icon::before,
+.radial-wheel .wheel-sector.selected .sector-icon::after,
+.radial-wheel .wheel-sector.children-open .sector-icon::before,
+.radial-wheel .wheel-sector.children-open .sector-icon::after {
+  content: none !important;
+
+  display: none !important;
+
+  background: none !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  filter: none !important;
+}
+
+
+/* ==========================================================
+   REMOVE GLOW FROM THE ICON IMAGE ITSELF
+   ========================================================== */
+
+.radial-wheel
+  .wheel-sector.hovered
+  .sector-icon img,
+.radial-wheel
+  .wheel-sector.selected
+  .sector-icon img,
+.radial-wheel
+  .wheel-sector.children-open
+  .sector-icon img {
+  filter: none !important;
+
+  box-shadow: none !important;
+}
+
+
+/* ==========================================================
+   REMOVE CIRCLE FROM FALLBACK ICON
+   ========================================================== */
+
+.radial-wheel
+  .wheel-sector.hovered
+  .sector-icon-fallback,
+.radial-wheel
+  .wheel-sector.selected
+  .sector-icon-fallback,
+.radial-wheel
+  .wheel-sector.children-open
+  .sector-icon-fallback {
+  background: transparent !important;
+  background-color: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  filter: none !important;
+}
+
+
+/* ==========================================================
+   REMOVE CIRCULAR SECTOR BACKGROUND
+   ========================================================== */
+
+.radial-wheel .wheel-sector.hovered,
+.radial-wheel .wheel-sector.selected,
+.radial-wheel .wheel-sector.children-open {
+  background: transparent !important;
+  background-color: transparent !important;
+
+  border-radius: 0 !important;
+
+  box-shadow: none !important;
+
+  filter: none !important;
+}
+
+
+/* Remove pseudo-element bubbles from the sector */
+
+.radial-wheel .wheel-sector.hovered::before,
+.radial-wheel .wheel-sector.hovered::after,
+.radial-wheel .wheel-sector.selected::before,
+.radial-wheel .wheel-sector.selected::after,
+.radial-wheel .wheel-sector.children-open::before,
+.radial-wheel .wheel-sector.children-open::after {
+  content: none !important;
+
+  display: none !important;
+
+  background: none !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  filter: none !important;
+}

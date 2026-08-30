@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
-
+src-tauri/target/
+src-tauri/bundler/
+src-tauri/icons/
 # Environment variables
 .env
 .env.local
