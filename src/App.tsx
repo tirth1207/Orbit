@@ -35,7 +35,20 @@ const DEFAULT_CONFIG: AppConfig = {
   opacity: 0.98,
   border: true,
   blur: true,
-  items: [],
+  items: [
+    { id: "browser", name: "Browser", type: "url", target: "https://google.com", enabled: true },
+    { id: "vscode", name: "VS Code", type: "app", target: "code", enabled: true },
+    { id: "terminal", name: "Terminal", type: "command", target: "bash", enabled: true },
+    {
+      id: "ai", name: "AI", type: "menu", target: "", enabled: true,
+      children: [
+        { id: "chatgpt", name: "ChatGPT", type: "url", target: "https://chat.openai.com", enabled: true },
+        { id: "claude", name: "Claude", type: "url", target: "https://claude.ai", enabled: true },
+        { id: "gemini", name: "Gemini", type: "url", target: "https://gemini.google.com", enabled: true },
+        { id: "perplexity", name: "Perplexity", type: "url", target: "https://perplexity.ai", enabled: true },
+      ],
+    },
+  ],
   theme: "system",
 };
 

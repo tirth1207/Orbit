@@ -1469,12 +1469,41 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   ]);
 
   /* ==========================================================
-     AUTO FOCUS
+     AUTO FOCUS & CLICK OUTSIDE TO CLOSE
      ========================================================== */
 
   useEffect(() => {
     wheelRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+
+      if (
+        wheelRef.current &&
+        !wheelRef.current.contains(target)
+      ) {
+        setActivePath((previousPath) => {
+          if (previousPath.length > 0) {
+            setClosingChildPath(previousPath);
+            setTimeout(() => {
+              setClosingChildPath(null);
+            }, 160);
+            return [];
+          }
+          onClose();
+          return previousPath;
+        });
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [onClose]);
 
   /* ==========================================================
      WEDGE
