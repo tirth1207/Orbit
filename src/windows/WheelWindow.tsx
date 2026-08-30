@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
@@ -15,6 +9,44 @@ interface LocalWheelState {
   selectedIndex: number;
   hoveredIndex: number | null;
 }
+
+const SAMPLE_FALLBACK_CONFIG: AppConfig = {
+  enabled: true,
+  trigger: "ctrl+space",
+  radius: 180,
+  deadZone: 60,
+  itemSize: 76,
+  iconSize: 30,
+  animationSpeed: 180,
+  staggerDelay: 45,
+  showLabels: true,
+  showCenter: true,
+  centerIcon: "×",
+  enableHoverAnimation: true,
+  enableStaggerAnimation: true,
+  enableNestedAnimation: true,
+  startWithOs: false,
+  launchSettingsOnStartup: false,
+  wheelStyle: "glass",
+  opacity: 0.98,
+  border: true,
+  blur: true,
+  theme: "system",
+  items: [
+    { id: "browser", name: "Browser", type: "url", target: "https://google.com", enabled: true },
+    { id: "vscode", name: "VS Code", type: "app", target: "code", enabled: true },
+    { id: "terminal", name: "Terminal", type: "command", target: "bash", enabled: true },
+    {
+      id: "ai", name: "AI", type: "menu", target: "", enabled: true,
+      children: [
+        { id: "chatgpt", name: "ChatGPT", type: "url", target: "https://chat.openai.com", enabled: true },
+        { id: "claude", name: "Claude", type: "url", target: "https://claude.ai", enabled: true },
+        { id: "gemini", name: "Gemini", type: "url", target: "https://gemini.google.com", enabled: true },
+        { id: "perplexity", name: "Perplexity", type: "url", target: "https://perplexity.ai", enabled: true },
+      ],
+    },
+  ],
+};
 
 export function WheelWindow() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -60,9 +92,16 @@ export function WheelWindow() {
 
   useEffect(() => {
     invoke<AppConfig>("load_configuration")
-      .then(setConfig)
+      .then((loaded) => {
+        if (loaded && loaded.items && loaded.items.length > 0) {
+          setConfig(loaded);
+        } else {
+          setConfig(SAMPLE_FALLBACK_CONFIG);
+        }
+      })
       .catch((error) => {
-        console.error("[Orbit] Failed to load configuration:", error);
+        console.warn("[Orbit] Tauri load_configuration not available, using fallback config:", error);
+        setConfig(SAMPLE_FALLBACK_CONFIG);
       });
   }, []);
 
@@ -90,7 +129,7 @@ export function WheelWindow() {
           });
         });
       } catch (error) {
-        console.error("[Orbit WheelWindow] Failed to setup listeners:", error);
+        console.warn("[Orbit WheelWindow] Listener setup warning (non-Tauri environment):", error);
       }
     };
 
@@ -112,7 +151,7 @@ export function WheelWindow() {
     closingRef.current = true;
 
     invoke("close_wheel").catch((error) => {
-      console.error("[Orbit] Failed to close wheel:", error);
+      console.warn("[Orbit] Failed to close wheel:", error);
       closingRef.current = false;
     });
   }, []);
@@ -159,7 +198,7 @@ export function WheelWindow() {
           action: targetItem,
         });
       } catch (error) {
-        console.error("[Orbit] Failed to execute action:", error);
+        console.warn("[Orbit] Failed to execute action:", error);
       }
     },
     [enabledItems, closeWheel]
