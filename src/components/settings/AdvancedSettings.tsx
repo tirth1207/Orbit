@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Download,
   Upload,
@@ -9,8 +10,10 @@ import {
   AlertTriangle,
   FolderOpen,
 } from "lucide-react";
+
 import { ConfirmDialog } from "./ConfirmDialog";
 import { type AppConfig } from "../../types/types";
+import { validateConfig } from "../../utils/validateConfig";
 
 interface AdvancedSettingsProps {
   config: AppConfig;
@@ -38,6 +41,42 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     }
   };
 
+  const handleNativeExport = async () => {
+    try {
+      const jsonContent = JSON.stringify(config, null, 2);
+      const savedPath = await invoke<string | null>("export_configuration_native", {
+        jsonContent,
+      });
+      if (!savedPath) {
+        // Fallback to browser download if user cancelled or command unsupported
+        onExport();
+      }
+    } catch (err) {
+      console.warn("[Orbit] Native export fallback to browser download:", err);
+      onExport();
+    }
+  };
+
+  const handleNativeImport = async () => {
+    setImportError(null);
+    try {
+      const content = await invoke<string | null>("import_configuration_native");
+      if (!content) return; // User cancelled dialog
+
+      const parsed = JSON.parse(content);
+      const validation = validateConfig(parsed);
+
+      if (!validation.valid || !validation.normalizedConfig) {
+        setImportError(validation.error || "Invalid Orbit configuration file.");
+        return;
+      }
+
+      onImport(validation.normalizedConfig);
+    } catch (err: any) {
+      setImportError(err.message || "Failed to import configuration file.");
+    }
+  };
+
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(null);
     const file = e.target.files?.[0];
@@ -48,18 +87,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
       try {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
+        const validation = validateConfig(parsed);
 
-        // Validate basic configuration fields
-        if (
-          typeof parsed !== "object" ||
-          parsed === null ||
-          typeof parsed.enabled !== "boolean" ||
-          !Array.isArray(parsed.items)
-        ) {
-          throw new Error("Invalid Orbit configuration file format.");
+        if (!validation.valid || !validation.normalizedConfig) {
+          setImportError(validation.error || "Invalid Orbit configuration file.");
+          return;
         }
 
-        onImport(parsed as AppConfig);
+        onImport(validation.normalizedConfig);
       } catch (err: any) {
         setImportError(err.message || "Failed to parse imported JSON file.");
       }
@@ -113,12 +148,21 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             <button
               type="button"
               className="orbit-btn orbit-btn-secondary orbit-btn-sm"
-              onClick={onExport}
+              onClick={handleNativeExport}
             >
               <Download size={14} /> Export JSON
             </button>
-            <label className="orbit-btn orbit-btn-secondary orbit-btn-sm orbit-btn-file">
+
+            <button
+              type="button"
+              className="orbit-btn orbit-btn-secondary orbit-btn-sm"
+              onClick={handleNativeImport}
+            >
               <Upload size={14} /> Import JSON
+            </button>
+
+            <label className="orbit-btn orbit-btn-ghost orbit-btn-sm orbit-btn-file" title="Upload JSON file">
+              Browser Upload
               <input
                 type="file"
                 accept=".json"
