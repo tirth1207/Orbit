@@ -213,55 +213,17 @@
 
 /* =========================================================
    NESTED RING GUIDE
-   A second ring, concentric with the primary wheel
-   (same left: 50% / top: 50% / translate(-50%, -50%) center),
-   drawn at a LARGER radius via --nested-wheel-radius.
-   This is what the submenu items sit on.
+
+   The old implementation used a full circular element here.
+   That created the large solid outer disk.
+
+   The outer ring is now drawn as individual SVG annular
+   sectors in RadialWheel.tsx, so this element is intentionally
+   removed from visual rendering.
    ========================================================= */
 
 .radial-wheel .nested-wheel-ring {
-  position: absolute;
-
-  left: 50%;
-  top: 50%;
- 
-  width: calc(var(--nested-wheel-radius) * 2.5);
-  height: calc(var(--nested-wheel-radius) * 2.5);
-
-  transform: translate(-50%, -50%);
-
-  border-radius: 50%;
-
-  box-sizing: border-box;
-
-  border: 1px solid var(--wheel-primary-border);
-
-  background: var(--wheel-surface);
-
-
-  pointer-events: none;
-
-  z-index: 2;
-
-  opacity: 0;
-
-  animation: nested-ring-fade-in 220ms ease forwards;
-}
-
-.radial-wheel .nested-wheel-ring.is-closing {
-  animation: nested-ring-fade-out 160ms ease forwards;
-}
-
-@keyframes nested-ring-fade-in {
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes nested-ring-fade-out {
-  to {
-    opacity: 0;
-  }
+  display: none !important;
 }
 
 
@@ -1202,7 +1164,6 @@
   .radial-wheel .wheel-sector,
   .radial-wheel .nested-sector,
   .radial-wheel .wheel-center,
-  .radial-wheel .nested-wheel-ring,
   .radial-wheel .wheel-guide-line {
     transition: none;
     animation: none;
@@ -1213,10 +1174,118 @@
     transform: none;
   }
 
-  .radial-wheel .nested-wheel-ring {
-    opacity: 1;
-  }
 }
+
+/* ==========================================================
+   OUTER CHILD SECTOR ARCS
+
+   These SVG paths form the visible outer ring.
+
+   IMPORTANT:
+   - There is no full circular background.
+   - Only the open child-menu sectors are drawn.
+   - Gaps between sectors stay completely transparent.
+   - The geometry uses the same center as the primary wheel.
+   ========================================================== */
+/* ==========================================================
+   CONNECTED OUTER CHILD SECTORS
+
+   These paths form the visible outer arc.
+
+   Adjacent SVG sectors intentionally touch each other.
+   There is NO gap between neighbouring child sectors.
+   ========================================================== */
+
+.radial-wheel .wheel-outer-sector {
+  fill: var(--wheel-surface);
+
+  /*
+   * Keep the boundary extremely subtle.
+   * The neighbouring paths share the exact same edge.
+   */
+  stroke: var(--wheel-border-strong);
+
+  stroke-width: 1px;
+
+  /*
+   * Prevent SVG scaling from changing the border thickness.
+   */
+  vector-effect: non-scaling-stroke;
+
+  /*
+   * The SVG layer is visual only.
+   * Pointer events continue to be handled by the wheel.
+   */
+  pointer-events: none;
+
+  opacity: 0.86;
+
+  transition:
+    fill 160ms ease,
+    opacity 160ms ease,
+    stroke 160ms ease;
+}
+
+
+/* ==========================================================
+   ACTIVE CHILD OUTER SECTOR
+   ========================================================== */
+
+.radial-wheel
+  .wheel-outer-sector.is-active {
+  fill:
+    var(--wheel-primary-tint);
+
+  stroke:
+    var(--wheel-primary-border);
+
+  opacity: 0.98;
+}
+
+
+/* ==========================================================
+   OUTER CHILD HOVER WEDGE
+
+   This is the stronger highlight for the exact child
+   currently underneath the pointer.
+   ========================================================== */
+
+.radial-wheel
+  .wheel-outer-wedge {
+  fill:
+    var(--wheel-primary-tint);
+
+  stroke:
+    var(--wheel-primary-border);
+
+  stroke-width: 1px;
+
+  vector-effect:
+    non-scaling-stroke;
+
+  opacity: 1;
+
+  pointer-events: none;
+
+  filter:
+    drop-shadow(
+      0 0 10px
+      rgba(59, 130, 246, 0.08)
+    );
+
+  transition:
+    opacity 160ms ease,
+    fill 160ms ease,
+    stroke 160ms ease,
+    filter 160ms ease;
+}
+
+.radial-wheel .wheel-outer-sector.is-active {
+  fill: var(--wheel-primary-tint);
+  stroke: var(--wheel-primary-border);
+  opacity: 0.95;
+}
+
 
 /* ==========================================================
    OUTER RING HOVER SECTOR
@@ -1403,4 +1472,4 @@
   box-shadow: none !important;
 
   filter: none !important;
-}
+} 

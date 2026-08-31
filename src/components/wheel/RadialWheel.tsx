@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -1823,6 +1823,300 @@ const outerWedgePath = useMemo(() => {
       deadZone,
       radius,
     ]);
+  /* ==========================================================
+     OUTER CHILD SECTOR ARCS
+
+     The outer ring is NOT a complete circle.
+
+     Only the angular region occupied by the currently open
+     child menu gets an outer arc. Empty areas stay transparent,
+     matching the segmented/open-arc style of the reference.
+     ========================================================== */
+
+  /* ==========================================================
+   CONNECTED OUTER CHILD SECTORS
+
+   Each child gets one outer annular sector.
+
+   IMPORTANT:
+   - Adjacent child sectors TOUCH each other.
+   - There is NO angular gap between neighbouring sectors.
+   - The boundary is exactly halfway between two children.
+   - The entire group remains concentric with the main wheel.
+   - Nothing is rendered outside the child-menu arc.
+   ========================================================== */
+
+const outerSectorPaths = useMemo(() => {
+  if (childSectors.length === 0) {
+    return [];
+  }
+
+  const cx = radius;
+  const cy = radius;
+
+  /*
+   * --------------------------------------------------------
+   * OUTER RING RADII
+   * --------------------------------------------------------
+   */
+
+  const innerRadius =
+    radius + 4;
+
+  const outerRadius =
+    radius * 1.7;
+
+  /*
+   * --------------------------------------------------------
+   * Convert polar coordinates to SVG coordinates.
+   * --------------------------------------------------------
+   */
+
+  const point = (
+    r: number,
+    angle: number,
+  ) => ({
+    x:
+      cx +
+      r * Math.cos(angle),
+
+    y:
+      cy +
+      r * Math.sin(angle),
+  });
+
+  /*
+   * --------------------------------------------------------
+   * CHILD SECTOR BOUNDARIES
+   *
+   * Example:
+   *
+   *       Child A       Child B
+   *          ●             ●
+   *
+   *             │
+   *             │
+   *       boundary = midpoint
+   *
+   * This means:
+   *
+   * Child A ┃ Child B
+   *
+   * instead of:
+   *
+   * Child A   Child B
+   *
+   * --------------------------------------------------------
+   */
+
+  return childSectors.map(
+    (sector, index) => {
+      const currentAngle =
+        sector.angle;
+
+      let startAngle: number;
+      let endAngle: number;
+
+      /*
+       * ------------------------------------------------------
+       * SINGLE CHILD
+       * ------------------------------------------------------
+       */
+
+      if (
+        childSectors.length === 1
+      ) {
+        const half =
+          Math.PI / 8;
+
+        startAngle =
+          currentAngle - half;
+
+        endAngle =
+          currentAngle + half;
+      }
+
+      /*
+       * ------------------------------------------------------
+       * FIRST CHILD
+       *
+       * Extend backwards by HALF of the distance to the
+       * next child.
+       * ------------------------------------------------------
+       */
+
+      else if (index === 0) {
+        const nextAngle =
+          childSectors[
+            index + 1
+          ].angle;
+
+        const distance =
+          nextAngle -
+          currentAngle;
+
+        startAngle =
+          currentAngle -
+          distance / 2;
+
+        endAngle =
+          currentAngle +
+          distance / 2;
+      }
+
+      /*
+       * ------------------------------------------------------
+       * LAST CHILD
+       *
+       * Extend forwards by HALF of the distance from the
+       * previous child.
+       * ------------------------------------------------------
+       */
+
+      else if (
+        index ===
+        childSectors.length - 1
+      ) {
+        const previousAngle =
+          childSectors[
+            index - 1
+          ].angle;
+
+        const distance =
+          currentAngle -
+          previousAngle;
+
+        startAngle =
+          currentAngle -
+          distance / 2;
+
+        endAngle =
+          currentAngle +
+          distance / 2;
+      }
+
+      /*
+       * ------------------------------------------------------
+       * MIDDLE CHILD
+       *
+       * Start exactly halfway between the previous child
+       * and current child.
+       *
+       * End exactly halfway between current child and next.
+       *
+       * Therefore adjacent sectors SHARE the same boundary.
+       * ------------------------------------------------------
+       */
+
+      else {
+        const previousAngle =
+          childSectors[
+            index - 1
+          ].angle;
+
+        const nextAngle =
+          childSectors[
+            index + 1
+          ].angle;
+
+        startAngle =
+          (
+            previousAngle +
+            currentAngle
+          ) / 2;
+
+        endAngle =
+          (
+            currentAngle +
+            nextAngle
+          ) / 2;
+      }
+
+      /*
+       * ------------------------------------------------------
+       * Create the four points of the annular sector.
+       *
+       *        P2 -------- P3
+       *       /              \
+       *      /                \
+       *     P1 -------- P4
+       *
+       * ------------------------------------------------------
+       */
+
+      const p1 =
+        point(
+          innerRadius,
+          startAngle,
+        );
+
+      const p2 =
+        point(
+          outerRadius,
+          startAngle,
+        );
+
+      const p3 =
+        point(
+          outerRadius,
+          endAngle,
+        );
+
+      const p4 =
+        point(
+          innerRadius,
+          endAngle,
+        );
+
+      /*
+       * Determine whether the SVG arc is larger than 180°.
+       */
+
+      const largeArc =
+        endAngle -
+          startAngle >
+        Math.PI
+          ? 1
+          : 0;
+
+      /*
+       * ------------------------------------------------------
+       * Build the connected annular sector.
+       * ------------------------------------------------------
+       */
+
+      const path = [
+        `M ${p1.x} ${p1.y}`,
+
+        `L ${p2.x} ${p2.y}`,
+
+        `A ${outerRadius} ${outerRadius}
+         0 ${largeArc} 1
+         ${p3.x} ${p3.y}`,
+
+        `L ${p4.x} ${p4.y}`,
+
+        `A ${innerRadius} ${innerRadius}
+         0 ${largeArc} 0
+         ${p1.x} ${p1.y}`,
+
+        "Z",
+      ].join(" ");
+
+      return {
+        child:
+          sector.child,
+
+        index,
+
+        path,
+      };
+    },
+  );
+}, [
+  childSectors,
+  radius,
+]);
 
   /* ==========================================================
      CLASS NAME
@@ -2061,50 +2355,78 @@ const outerWedgePath = useMemo(() => {
       />
 
       {/* =====================================================
-          ACTIVE WEDGE + CONNECTIONS
+          OUTER SECTOR ARCS + ACTIVE WEDGE + CONNECTIONS
           ===================================================== */}
 
-      {wedgePath && (
-        <svg
-          className="wheel-wedge-layer"
-          width={diameter}
-          height={diameter}
-          viewBox={`0 0 ${diameter} ${diameter}`}
-          aria-hidden="true"
-        >
-          {/* =====================================================
-              OUTER RING HIGHLIGHT
-              ===================================================== */}
+      <svg
+        className="wheel-wedge-layer"
+        width={diameter}
+        height={diameter}
+        viewBox={`0 0 ${diameter} ${diameter}`}
+        aria-hidden="true"
+      >
+        {/* ===================================================
+            OUTER CHILD SECTORS
 
-          {outerWedgePath && (
-            <path
-              className="wheel-outer-wedge"
-              d={outerWedgePath}
-            />
-          )}
+            Only the part occupied by the open child menu is
+            rendered. Everything else is transparent.
+            =================================================== */}
 
-          {/* =====================================================
-              PRIMARY / INNER WEDGE
-              ===================================================== */}
+        {outerSectorPaths.map(
+          ({ child, index, path }) => {
+            const isChildActive =
+              activeChildId === child.id;
 
-          {wedgePath && (
-            <path
-              className={
-                activePrimaryId
-                  ? "wheel-wedge is-hovered"
-                  : "wheel-wedge is-selected"
-              }
-              d={wedgePath}
-            />
-          )}
+            return (
+              <path
+                key={`outer-sector-${child.id}`}
+                className={[
+                  "wheel-outer-sector",
+                  isChildActive
+                    ? "is-active"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                d={path}
+                data-index={index}
+              />
+            );
+          },
+        )}
 
-          {/* =====================================================
-              CONNECTION LINES
-              ===================================================== */}
+        {/* ===================================================
+            ACTIVE CHILD HOVER HIGHLIGHT
+            =================================================== */}
 
-          {visualConnections}
-        </svg>
-      )}
+        {outerWedgePath && (
+          <path
+            className="wheel-outer-wedge"
+            d={outerWedgePath}
+          />
+        )}
+
+        {/* ===================================================
+            PRIMARY / INNER WEDGE
+            =================================================== */}
+
+        {wedgePath && (
+          <path
+            className={
+              activePrimaryId
+                ? "wheel-wedge is-hovered"
+                : "wheel-wedge is-selected"
+            }
+            d={wedgePath}
+          />
+        )}
+
+        {/* ===================================================
+            CONNECTION LINES
+            =================================================== */}
+
+        {visualConnections}
+      </svg>
 
       {/* =====================================================
           DRAG GUIDE
@@ -2359,22 +2681,6 @@ const outerWedgePath = useMemo(() => {
       {/* =====================================================
           NESTED WHEEL
           ===================================================== */}
-
-      {(renderingChildren ||
-        isClosingChildren) && (
-        <div
-          className={[
-            "nested-wheel-ring",
-
-            isClosingChildren
-              ? "is-closing"
-              : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          aria-hidden="true"
-        />
-      )}
 
       {(renderingChildren ||
         isClosingChildren) && (
