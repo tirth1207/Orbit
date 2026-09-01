@@ -28,10 +28,14 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   onDiscard,
   children,
 }) => {
-  // Count root actions and nested child actions
-  const rootActionCount = config.items.length;
-  const nestedActionCount = config.items.reduce(
-    (acc, item) => acc + (item.children?.length ?? 0),
+  // Count root actions and nested child actions across every page
+  const rootActionCount = config.pages.reduce(
+    (acc, page) => acc + page.items.length,
+    0
+  );
+  const nestedActionCount = config.pages.reduce(
+    (acc, page) =>
+      acc + page.items.reduce((pageTotal, item) => pageTotal + (item.children?.length ?? 0), 0),
     0
   );
 
