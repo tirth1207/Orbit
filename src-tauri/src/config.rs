@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
 
-use crate::types::{Action, Config};
+use crate::types::{Action, Config, WheelPage};
 
 pub struct ConfigState(pub Mutex<Config>);
 
@@ -21,6 +21,41 @@ pub fn config_path() -> PathBuf {
     }
 }
 
+fn normalize_config_pages(mut config: Config) -> Config {
+    if config.pages.is_empty() {
+        let legacy_items = if config.items.is_empty() {
+            default_items()
+        } else {
+            config.items.clone()
+        };
+
+        config.items = legacy_items.clone();
+        config.pages = vec![WheelPage {
+            id: "applications".to_string(),
+            name: "Applications".to_string(),
+            icon: Some("grid-3x3".to_string()),
+            r#type: "launcher".to_string(),
+            enabled: true,
+            items: legacy_items,
+        }];
+        config.default_page_id = Some("applications".to_string());
+    }
+
+    if config.default_page_id.is_none() {
+        config.default_page_id = config.pages.first().map(|page| page.id.clone());
+    }
+
+    if config.items.is_empty() {
+        config.items = config
+            .pages
+            .iter()
+            .flat_map(|page| page.items.iter().cloned())
+            .collect();
+    }
+
+    config
+}
+
 /// Load configuration from disk.
 /// If the configuration does not exist, a default configuration is created.
 pub fn load_rust_config() -> Config {
@@ -30,6 +65,8 @@ pub fn load_rust_config() -> Config {
         Ok(content) => match serde_json::from_str::<Config>(&content) {
             Ok(mut config) => {
                 println!("[Orbit] Configuration loaded from {:?}", path);
+                config = normalize_config_pages(config);
+
                 if config.items.is_empty() {
                     config.items = default_items();
                     if let Err(e) = save_to_disk(&config) {
@@ -50,6 +87,15 @@ pub fn load_rust_config() -> Config {
                 eprintln!("[Orbit] Using default configuration");
                 let mut config = Config::default();
                 config.items = default_items();
+                config.pages = vec![WheelPage {
+                    id: "applications".to_string(),
+                    name: "Applications".to_string(),
+                    icon: Some("grid-3x3".to_string()),
+                    r#type: "launcher".to_string(),
+                    enabled: true,
+                    items: config.items.clone(),
+                }];
+                config.default_page_id = Some("applications".to_string());
                 if let Err(e) = save_to_disk(&config) {
                     eprintln!("[Orbit] Failed to save default configuration: {}", e);
                 }
@@ -63,6 +109,15 @@ pub fn load_rust_config() -> Config {
             );
             let mut config = Config::default();
             config.items = default_items();
+            config.pages = vec![WheelPage {
+                id: "applications".to_string(),
+                name: "Applications".to_string(),
+                icon: Some("grid-3x3".to_string()),
+                r#type: "launcher".to_string(),
+                enabled: true,
+                items: config.items.clone(),
+            }];
+            config.default_page_id = Some("applications".to_string());
             if let Err(error) = save_to_disk(&config) {
                 eprintln!("[Orbit] Failed to save default configuration: {}", error);
             }
