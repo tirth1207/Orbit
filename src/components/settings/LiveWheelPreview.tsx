@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { RadialWheel } from "../wheel/RadialWheel";
 import { type AppConfig } from "../../types/types";
 
@@ -7,26 +7,8 @@ interface LiveWheelPreviewProps {
 }
 
 export const LiveWheelPreview: React.FC<LiveWheelPreviewProps> = ({ config }) => {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
-  const enabledItems = config.items.filter((item) => item.enabled);
-
-  const wheelItems = enabledItems.map((item) => ({
-    id: item.id,
-    name: item.name,
-    type: item.type,
-    target: item.target,
-    icon: item.icon ?? undefined,
-    enabled: item.enabled,
-    children: item.children?.map((child) => ({
-      id: child.id,
-      name: child.name,
-      type: child.type,
-      target: child.target,
-      icon: child.icon ?? undefined,
-      enabled: child.enabled,
-    })),
-  }));
+  const currentPage = config.pages.find((page) => page.id === config.defaultPageId) ?? config.pages[0];
+  const enabledItems = currentPage?.items.filter((item) => item.enabled) ?? [];
 
   const handleItemSelect = (index: number, childIndex?: number) => {
     const item = enabledItems[index];
@@ -58,16 +40,13 @@ export const LiveWheelPreview: React.FC<LiveWheelPreviewProps> = ({ config }) =>
           }}
         >
           <RadialWheel
-            items={wheelItems}
-            selectedIndex={-1}
-            hoveredIndex={hoveredIndex}
+            pages={config.pages}
+            currentPageId={config.defaultPageId ?? config.pages[0]?.id ?? "applications"}
+            config={config}
+            onPageChange={() => undefined}
             onItemSelect={handleItemSelect}
-            onItemHover={(index) => setHoveredIndex(index)}
+            onItemHover={() => undefined}
             onClose={() => console.log("[Orbit Live Preview] Center closed")}
-            radius={config.radius}
-            deadZone={config.deadZone}
-            showCenter={config.showCenter}
-            centerIcon={config.centerIcon}
           />
         </div>
       </div>
