@@ -60,6 +60,19 @@ impl Default for Action {
     }
 }
 
+/// A single wheel page with its own actions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WheelPage {
+    pub id: String,
+    pub name: String,
+    pub icon: Option<String>,
+    #[serde(rename = "type")]
+    pub r#type: String,
+    pub enabled: bool,
+    pub items: Vec<Action>,
+}
+
 /// Configuration for Orbit
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -67,6 +80,10 @@ pub struct Config {
     pub version: u32,
     pub settings: Settings,
     pub items: Vec<Action>,
+    #[serde(default)]
+    pub pages: Vec<WheelPage>,
+    #[serde(default)]
+    pub default_page_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -157,10 +174,21 @@ pub struct StartupSettings {
 
 impl Default for Config {
     fn default() -> Self {
+        let default_page = WheelPage {
+            id: "applications".to_string(),
+            name: "Applications".to_string(),
+            icon: Some("grid-3x3".to_string()),
+            r#type: "launcher".to_string(),
+            enabled: true,
+            items: Vec::new(),
+        };
+
         Self {
             version: 1,
             settings: Settings::default(),
             items: Vec::new(),
+            pages: vec![default_page],
+            default_page_id: Some("applications".to_string()),
         }
     }
 }
