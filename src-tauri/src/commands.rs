@@ -4,6 +4,17 @@ use tauri::{Emitter, Manager};
 use crate::config::{self, ConfigState};
 use crate::types::*;
 
+fn page_from_items(items: Vec<Action>) -> WheelPage {
+    WheelPage {
+        id: "applications".to_string(),
+        name: "Applications".to_string(),
+        icon: Some("grid-3x3".to_string()),
+        r#type: "launcher".to_string(),
+        enabled: true,
+        items,
+    }
+}
+
 /// Frontend-facing application configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,11 +40,25 @@ pub struct AppConfig {
     pub border: bool,
     pub blur: bool,
     pub items: Vec<Action>,
+    pub pages: Vec<WheelPage>,
+    pub default_page_id: Option<String>,
     pub theme: String,
     pub config_path: Option<String>,
 }
 
 pub fn config_to_app_config(cfg: &Config) -> AppConfig {
+    let pages = if cfg.pages.is_empty() {
+        vec![page_from_items(cfg.items.clone())]
+    } else {
+        cfg.pages.clone()
+    };
+
+    let items = if cfg.items.is_empty() {
+        pages.iter().flat_map(|page| page.items.iter().cloned()).collect()
+    } else {
+        cfg.items.clone()
+    };
+
     AppConfig {
         enabled: cfg.settings.enabled,
         trigger: cfg.settings.trigger.clone(),
@@ -55,13 +80,27 @@ pub fn config_to_app_config(cfg: &Config) -> AppConfig {
         opacity: cfg.settings.appearance.opacity,
         border: cfg.settings.appearance.border,
         blur: cfg.settings.appearance.blur,
-        items: cfg.items.clone(),
+        items,
+        pages,
+        default_page_id: cfg.default_page_id.clone(),
         theme: cfg.settings.appearance.theme.clone(),
         config_path: Some(config::config_path().to_string_lossy().to_string()),
     }
 }
 
 pub fn app_config_to_config(app_config: &AppConfig) -> Config {
+    let pages = if app_config.pages.is_empty() {
+        vec![page_from_items(app_config.items.clone())]
+    } else {
+        app_config.pages.clone()
+    };
+    let default_page_id = app_config.default_page_id.clone().or_else(|| pages.first().map(|page| page.id.clone()));
+    let items = if app_config.items.is_empty() {
+        pages.iter().flat_map(|page| page.items.iter().cloned()).collect()
+    } else {
+        app_config.items.clone()
+    };
+
     Config {
         version: 1,
         settings: Settings {
@@ -94,7 +133,9 @@ pub fn app_config_to_config(app_config: &AppConfig) -> Config {
                 launch_settings_on_startup: app_config.launch_settings_on_startup,
             },
         },
-        items: app_config.items.clone(),
+        items,
+        pages,
+        default_page_id,
     }
 }
 
