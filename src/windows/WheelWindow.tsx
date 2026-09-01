@@ -3,14 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import { RadialWheel } from "../components/wheel/RadialWheel";
-import { type AppConfig } from "../types/types";
+import { type AppConfig, migrateAppConfig } from "../types/types";
 
-interface LocalWheelState {
-  selectedIndex: number;
-  hoveredIndex: number | null;
-}
-
-const SAMPLE_FALLBACK_CONFIG: AppConfig = {
+const SAMPLE_FALLBACK_CONFIG: AppConfig = migrateAppConfig({
+  version: 2,
   enabled: true,
   trigger: "ctrl+space",
   radius: 180,
@@ -32,29 +28,36 @@ const SAMPLE_FALLBACK_CONFIG: AppConfig = {
   border: true,
   blur: true,
   theme: "system",
-  items: [
-    { id: "browser", name: "Browser", type: "url", target: "https://google.com", enabled: true },
-    { id: "vscode", name: "VS Code", type: "app", target: "code", enabled: true },
-    { id: "terminal", name: "Terminal", type: "command", target: "bash", enabled: true },
-    {
-      id: "ai", name: "AI", type: "menu", target: "", enabled: true,
-      children: [
-        { id: "chatgpt", name: "ChatGPT", type: "url", target: "https://chat.openai.com", enabled: true },
-        { id: "claude", name: "Claude", type: "url", target: "https://claude.ai", enabled: true },
-        { id: "gemini", name: "Gemini", type: "url", target: "https://gemini.google.com", enabled: true },
-        { id: "perplexity", name: "Perplexity", type: "url", target: "https://perplexity.ai", enabled: true },
-      ],
-    },
-  ],
-};
+  pages: [{
+    id: "applications",
+    name: "Applications",
+    icon: "grid-3x3",
+    type: "launcher",
+    enabled: true,
+    items: [
+      { id: "browser", name: "Browser", type: "url", target: "https://google.com", enabled: true },
+      { id: "vscode", name: "VS Code", type: "application", target: "code", enabled: true },
+      { id: "terminal", name: "Terminal", type: "command", target: "bash", enabled: true },
+      {
+        id: "ai",
+        name: "AI",
+        type: "menu",
+        target: "",
+        enabled: true,
+        children: [
+          { id: "chatgpt", name: "ChatGPT", type: "url", target: "https://chat.openai.com", enabled: true },
+          { id: "claude", name: "Claude", type: "url", target: "https://claude.ai", enabled: true },
+          { id: "gemini", name: "Gemini", type: "url", target: "https://gemini.google.com", enabled: true },
+          { id: "perplexity", name: "Perplexity", type: "url", target: "https://perplexity.ai", enabled: true },
+        ],
+      },
+    ],
+  }],
+  defaultPageId: "applications",
+});
 
 export function WheelWindow() {
   const [config, setConfig] = useState<AppConfig | null>(null);
-
-  const [wheel, setWheel] = useState<LocalWheelState>({
-    selectedIndex: -1,
-    hoveredIndex: null,
-  });
 
   const closingRef = useRef(false);
 
@@ -93,8 +96,9 @@ export function WheelWindow() {
   useEffect(() => {
     invoke<AppConfig>("load_configuration")
       .then((loaded) => {
-        if (loaded && loaded.items && loaded.items.length > 0) {
-          setConfig(loaded);
+        const migrated = loaded ? migrateAppConfig(loaded) : SAMPLE_FALLBACK_CONFIG;
+        if (migrated && migrated.pages && migrated.pages.length > 0) {
+          setConfig(migrated);
         } else {
           setConfig(SAMPLE_FALLBACK_CONFIG);
         }
@@ -123,10 +127,6 @@ export function WheelWindow() {
 
         unlistenTrigger = await listen("orbit-trigger", () => {
           closingRef.current = false;
-          setWheel({
-            selectedIndex: -1,
-            hoveredIndex: null,
-          });
         });
       } catch (error) {
         console.warn("[Orbit WheelWindow] Listener setup warning (non-Tauri environment):", error);
@@ -208,12 +208,7 @@ export function WheelWindow() {
      HOVER
      ======================================================== */
 
-  const handleItemHover = useCallback((index: number | null) => {
-    setWheel((prev) => ({
-      ...prev,
-      hoveredIndex: index,
-    }));
-  }, []);
+  const handleItemHover = useCallback(() => undefined, []);
 
   if (!config) return null;
 
@@ -253,31 +248,16 @@ export function WheelWindow() {
         }}
       >
         <RadialWheel
-          items={enabledItems.map((item) => ({
-            id: item.id,
-            name: item.name,
-            type: item.type,
-            target: item.target,
-            icon: item.icon ?? undefined,
-            enabled: item.enabled,
-            children: item.children?.map((child) => ({
-              id: child.id,
-              name: child.name,
-              type: child.type,
-              target: child.target,
-              icon: child.icon ?? undefined,
-              enabled: child.enabled,
-            })),
-          }))}
-          selectedIndex={wheel.selectedIndex}
-          hoveredIndex={wheel.hoveredIndex}
+          pages={config.pages}
+          currentPageId={config.defaultPageId ?? config.pages[0]?.id ?? "applications"}
+          config={config}
+          onPageChange={(nextPageId) => {
+            if (!config.pages.some((page) => page.id === nextPageId)) return;
+            setConfig((current) => (current ? { ...current, defaultPageId: nextPageId } : current));
+          }}
           onItemSelect={handleItemSelect}
           onItemHover={handleItemHover}
           onClose={closeWheel}
-          radius={config.radius}
-          deadZone={config.deadZone}
-          showCenter={config.showCenter ?? true}
-          centerIcon={config.centerIcon ?? "×"}
         />
       </div>
     </div>
