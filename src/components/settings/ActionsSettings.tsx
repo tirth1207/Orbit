@@ -22,23 +22,52 @@ import { ActionEditor } from "./ActionEditor";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { type Action } from "../../types/types";
 
+interface PageConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  items: Action[];
+}
+
 interface ActionsSettingsProps {
   items: Action[];
+  pages?: PageConfig[];
+  pageName?: string;
+  pageOptions?: Array<{ id: string; name: string }>;
+  selectedPageId?: string | null;
+  onSelectPage?: (pageId: string) => void;
   onChange: (items: Action[]) => void;
   onOpenNestedEditor: (action: Action) => void;
+  onAddPage?: (name: string, enabled: boolean) => void;
+  onUpdatePage?: (pageId: string, updates: Partial<{ name: string; enabled: boolean }>) => void;
+  onDuplicatePage?: (pageId: string) => void;
+  onDeletePage?: (pageId: string) => void;
+  onMovePage?: (pageId: string, direction: "up" | "down") => void;
 }
 
 export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
   items,
+  pages = [],
+  pageName,
+  pageOptions,
+  selectedPageId,
+  onSelectPage,
   onChange,
   onOpenNestedEditor,
+  onAddPage,
+  onUpdatePage,
+  onDuplicatePage,
+  onDeletePage,
+  onMovePage,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingAction, setEditingAction] = useState<Action | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
+  const [isAddingPage, setIsAddingPage] = useState(false);
+  const [newPageName, setNewPageName] = useState("");
+  const [newPageEnabled, setNewPageEnabled] = useState(true);
 
-  // Filtered items
   const filteredItems = items.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -46,7 +75,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
       item.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Toggle single action enabled state
   const handleToggleEnabled = (id: string) => {
     const updated = items.map((item) =>
       item.id === id ? { ...item, enabled: !item.enabled } : item
@@ -54,7 +82,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
     onChange(updated);
   };
 
-  // Reorder action up or down
   const handleMove = (index: number, direction: "up" | "down") => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= items.length) return;
@@ -65,7 +92,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
     onChange(newItems);
   };
 
-  // Duplicate action
   const handleDuplicate = (item: Action) => {
     const newItem: Action = {
       ...item,
@@ -76,7 +102,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
     onChange([...items, newItem]);
   };
 
-  // Delete action
   const handleConfirmDelete = () => {
     if (!deletingActionId) return;
     const updated = items.filter((item) => item.id !== deletingActionId);
@@ -84,7 +109,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
     setDeletingActionId(null);
   };
 
-  // Save edited action
   const handleSaveAction = (savedAction: Action) => {
     const existingIndex = items.findIndex((i) => i.id === savedAction.id);
     if (existingIndex >= 0) {
@@ -119,28 +143,167 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
     }
   };
 
+  const selectedPage = pages.find((page) => page.id === selectedPageId) ?? pages[0];
+
+  const handleCreatePage = () => {
+    const trimmedName = newPageName.trim();
+    if (!trimmedName || !onAddPage) return;
+    onAddPage(trimmedName, newPageEnabled);
+    setNewPageName("");
+    setNewPageEnabled(true);
+    setIsAddingPage(false);
+  };
+
   return (
     <div className="orbit-section-panel">
       <div className="orbit-section-header">
         <div>
-          <h2>Root Wheel Actions</h2>
-          <p>
-            Manage actions displayed in the main radial menu. Order here matches the wheel order.
-          </p>
+          <h2>Pages & Actions</h2>
+          <p>Manage the pages in the wheel, then configure each page's actions.</p>
         </div>
-        <button
-          type="button"
-          className="orbit-btn orbit-btn-primary"
-          onClick={() => {
-            setEditingAction(null);
-            setIsEditorOpen(true);
-          }}
-        >
-          <Plus size={15} /> Add Action
-        </button>
+
+        <div className="orbit-header-controls">
+          {pageOptions && pageOptions.length > 1 && onSelectPage && (
+            <select
+              className="orbit-select"
+              value={selectedPageId ?? pageOptions[0]?.id ?? ""}
+              onChange={(event) => onSelectPage(event.target.value)}
+              aria-label="Select wheel page"
+            >
+              {pageOptions.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {page.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            type="button"
+            className="orbit-btn orbit-btn-primary"
+            onClick={() => {
+              setEditingAction(null);
+              setIsEditorOpen(true);
+            }}
+          >
+            <Plus size={15} /> Add Action
+          </button>
+        </div>
       </div>
 
-      {/* SEARCH AND BAR */}
+      {pageName && (
+        <div className="orbit-parent-selector-card" style={{ display: "grid", gap: 10 }}>
+          <label htmlFor="page-action-select">Editing page:</label>
+          <div className="orbit-select-readout" id="page-action-select">
+            {pageName}
+          </div>
+          <div className="orbit-input-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              className="orbit-input"
+              value={selectedPage?.name ?? pageName}
+              onChange={(event) =>
+                selectedPage && onUpdatePage?.(selectedPage.id, { name: event.target.value })
+              }
+              aria-label="Page name"
+            />
+            <label className="orbit-switch orbit-switch-sm" title="Enable/Disable page">
+              <input
+                type="checkbox"
+                checked={selectedPage?.enabled ?? true}
+                onChange={() =>
+                  selectedPage && onUpdatePage?.(selectedPage.id, { enabled: !selectedPage.enabled })
+                }
+              />
+              <span className="orbit-slider" />
+            </label>
+          </div>
+        </div>
+      )}
+
+      <div className="orbit-parent-selector-card" style={{ marginTop: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div>
+            <strong>Pages</strong>
+          </div>
+          <button type="button" className="orbit-btn orbit-btn-secondary orbit-btn-sm" onClick={() => setIsAddingPage((v) => !v)}>
+            <Plus size={14} /> {isAddingPage ? "Close" : "Add Page"}
+          </button>
+        </div>
+
+        {isAddingPage && (
+          <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+            <input
+              className="orbit-input"
+              placeholder="Page name"
+              value={newPageName}
+              onChange={(event) => setNewPageName(event.target.value)}
+            />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span>Enabled</span>
+              <label className="orbit-switch orbit-switch-sm">
+                <input type="checkbox" checked={newPageEnabled} onChange={() => setNewPageEnabled((v) => !v)} />
+                <span className="orbit-slider" />
+              </label>
+            </div>
+            <button type="button" className="orbit-btn orbit-btn-primary orbit-btn-sm" onClick={handleCreatePage} disabled={!newPageName.trim()}>
+              Create Page
+            </button>
+          </div>
+        )}
+
+        {pages.length > 0 && (
+          <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+            {pages.map((page, index) => (
+              <div
+                key={page.id}
+                className={`orbit-action-item ${selectedPageId === page.id ? "is-selected" : ""} ${!page.enabled ? "is-disabled" : ""}`}
+                style={{ padding: "8px 10px" }}
+              >
+                <div className="orbit-action-reorder" style={{ minWidth: 68 }}>
+                  <button type="button" className="orbit-btn-icon-subtle" onClick={() => onMovePage?.(page.id, "up")} disabled={index === 0} title="Move page up">
+                    <ChevronUp size={13} />
+                  </button>
+                  <GripVertical size={14} className="orbit-drag-handle" />
+                  <button type="button" className="orbit-btn-icon-subtle" onClick={() => onMovePage?.(page.id, "down")} disabled={index === pages.length - 1} title="Move page down">
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+
+                <div className="orbit-action-main" style={{ flex: 1 }}>
+                  <button
+                    type="button"
+                    className="orbit-btn orbit-btn-ghost orbit-btn-sm"
+                    onClick={() => onSelectPage?.(page.id)}
+                    style={{ justifyContent: "flex-start", width: "100%" }}
+                  >
+                    {page.name}
+                  </button>
+                </div>
+
+                <div className="orbit-action-controls">
+                  <label className="orbit-switch orbit-switch-sm" title="Enable/Disable page">
+                    <input
+                      type="checkbox"
+                      checked={page.enabled}
+                      onChange={() => onUpdatePage?.(page.id, { enabled: !page.enabled })}
+                    />
+                    <span className="orbit-slider" />
+                  </label>
+                  <button type="button" className="orbit-btn orbit-btn-ghost orbit-btn-icon orbit-btn-sm" onClick={() => onDuplicatePage?.(page.id)} title="Duplicate page">
+                    <Copy size={14} />
+                  </button>
+                  {pages.length > 1 && (
+                    <button type="button" className="orbit-btn orbit-btn-ghost orbit-btn-icon orbit-btn-sm orbit-btn-danger-ghost" onClick={() => onDeletePage?.(page.id)} title="Delete page">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="orbit-actions-toolbar">
         <div className="orbit-input-with-icon orbit-search-bar">
           <Search size={14} className="orbit-input-icon" />
@@ -157,7 +320,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
         </span>
       </div>
 
-      {/* ACTIONS LIST */}
       {filteredItems.length === 0 ? (
         <div className="orbit-empty-state">
           <Layers size={36} className="orbit-empty-icon" />
@@ -189,7 +351,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                 key={item.id}
                 className={`orbit-action-item ${!item.enabled ? "is-disabled" : ""}`}
               >
-                {/* REORDER BUTTONS */}
                 <div className="orbit-action-reorder">
                   <button
                     type="button"
@@ -212,7 +373,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                   </button>
                 </div>
 
-                {/* ICON & MAIN INFO */}
                 <div className="orbit-action-main">
                   <div className="orbit-action-icon-badge">
                     {item.icon ? (
@@ -238,9 +398,7 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                   </div>
                 </div>
 
-                {/* CONTROLS */}
                 <div className="orbit-action-controls">
-                  {/* ENABLED TOGGLE */}
                   <label className="orbit-switch orbit-switch-sm" title="Enable/Disable action">
                     <input
                       type="checkbox"
@@ -250,7 +408,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                     <span className="orbit-slider" />
                   </label>
 
-                  {/* NESTED MENU BUTTON */}
                   {(item.type === "menu" || hasChildren) && (
                     <button
                       type="button"
@@ -262,7 +419,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                     </button>
                   )}
 
-                  {/* EDIT BUTTON */}
                   <button
                     type="button"
                     className="orbit-btn orbit-btn-ghost orbit-btn-icon orbit-btn-sm"
@@ -275,7 +431,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                     <Edit3 size={14} />
                   </button>
 
-                  {/* DUPLICATE BUTTON */}
                   <button
                     type="button"
                     className="orbit-btn orbit-btn-ghost orbit-btn-icon orbit-btn-sm"
@@ -285,7 +440,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
                     <Copy size={14} />
                   </button>
 
-                  {/* DELETE BUTTON */}
                   <button
                     type="button"
                     className="orbit-btn orbit-btn-ghost orbit-btn-icon orbit-btn-sm orbit-btn-danger-ghost"
@@ -301,7 +455,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
         </div>
       )}
 
-      {/* ACTION EDITOR MODAL */}
       <ActionEditor
         action={editingAction}
         isOpen={isEditorOpen}
@@ -316,7 +469,6 @@ export const ActionsSettings: React.FC<ActionsSettingsProps> = ({
         }}
       />
 
-      {/* CONFIRM DELETE DIALOG */}
       <ConfirmDialog
         isOpen={Boolean(deletingActionId)}
         title="Delete Action?"
