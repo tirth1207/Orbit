@@ -1,4 +1,4 @@
-import { type AppConfig, type Action, type ActionType } from "../types/types";
+import { type AppConfig, type Action, type ActionType, migrateAppConfig } from "../types/types";
 
 const VALID_ACTION_TYPES: ActionType[] = [
   "application",
@@ -115,7 +115,8 @@ export function validateConfig(data: any): ValidationResult {
     }
   }
 
-  const normalizedConfig: AppConfig = {
+  const normalizedConfig: AppConfig = migrateAppConfig({
+    ...data,
     enabled: Boolean(data.enabled),
     trigger: typeof data.trigger === "string" ? data.trigger : "ctrl+space",
     radius,
@@ -137,9 +138,12 @@ export function validateConfig(data: any): ValidationResult {
     border: typeof data.border === "boolean" ? data.border : true,
     blur: typeof data.blur === "boolean" ? data.blur : true,
     items: normalizedItems,
+    pages: Array.isArray(data.pages)
+      ? data.pages
+      : [{ id: "applications", name: "Applications", icon: "grid-3x3", type: "launcher", enabled: true, items: normalizedItems }],
     theme: typeof data.theme === "string" ? data.theme : "system",
     configPath: typeof data.configPath === "string" ? data.configPath : undefined,
-  };
+  });
 
   return { valid: true, normalizedConfig };
 }
