@@ -1,5 +1,4 @@
 import React, { useEffect, useCallback } from "react";
-import { Save, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { SettingsSidebar, type SettingsTab } from "./SettingsSidebar";
 import { type AppConfig } from "../../types/types";
 
@@ -22,10 +21,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   config,
   hasUnsavedChanges,
   isSaving,
-  saveStatusMessage,
-  saveErrorMessage,
   onSave,
-  onDiscard,
   children,
 }) => {
   // Count root actions and nested child actions across every page
