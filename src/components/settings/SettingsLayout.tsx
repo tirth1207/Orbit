@@ -58,12 +58,8 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   }, [handleKeyDown]);
 
   return (
-    <div
-      className={`orbit-settings-app orbit-settings-app--minimal ${
-        config.theme === "dark" ? "theme-dark" : "theme-light"
-      }`}
-    >
-      {/* TAB BAR */}
+    <div className="orbit-settings-app orbit-settings-app--minimal">
+      {/* SIDEBAR */}
       <SettingsSidebar
         activeTab={activeTab}
         onSelectTab={onSelectTab}
@@ -74,7 +70,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
       {/* MAIN CONTENT WRAPPER */}
       <div className="orbit-settings-main">
         {/* HEADER BAR */}
-        <header className="orbit-settings-header">
+        {/* <header className="orbit-settings-header">
           <div className="orbit-header-left">
             <span
               className={`orbit-status-pill ${
@@ -127,7 +123,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
               </div>
             )}
           </div>
-        </header>
+        </header> */}
 
         {/* CONTENT SECTION */}
         <main className="orbit-settings-content">{children}</main>

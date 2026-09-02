@@ -34,7 +34,6 @@ export interface RadialWheelProps {
     opacity?: number;
     border?: boolean;
     blur?: boolean;
-    theme?: string;
   };
   onPageChange: (nextPageId: string) => void;
   onItemSelect: (index: number, childIndex?: number, item?: Action) => void;
