@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 
 import type { Action } from "../../types/types";
 import type { RadialWheelProps } from "./types";
+import "./RadialWheel.css";
 
 /* ================================================================
    CONSTANTS
@@ -1342,6 +1343,8 @@ fanAngle = Math.min(
     <div
       ref={wheelRef}
       className={`
+        radial-wheel
+
         relative
 
         flex
@@ -1361,6 +1364,8 @@ fanAngle = Math.min(
         }
 
         ${currentPage?.type === "music" ? "music-wheel" : ""}
+
+        ${config.theme === "dark" ? "theme-dark" : "theme-light"}
       `}
     >
       <svg

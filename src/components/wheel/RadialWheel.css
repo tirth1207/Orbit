@@ -1041,6 +1041,18 @@
     color 180ms ease;
 }
 
+.radial-wheel.theme-dark {
+  --wheel-surface: rgba(28, 35, 43, 0.94);
+  --wheel-border-soft: rgba(148, 163, 184, 0.38);
+  --wheel-border-strong: rgba(148, 163, 184, 0.2);
+  --wheel-text: #f8fafc;
+  --wheel-text-soft: #e2e8f0;
+  --wheel-text-faint: #94a3b8;
+  --wheel-shadow-ambient: 0 22px 46px rgba(0, 0, 0, 0.55);
+  --wheel-shadow-contact: 0 3px 12px rgba(0, 0, 0, 0.45);
+  --wheel-shadow-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 /* Music page: make the center feel like a physical record. */
 .radial-wheel.music-wheel .wheel-center {
   background: radial-gradient(circle at 35% 30%, #4b5563 0 8%, #17191d 42%, #050506 100%);
