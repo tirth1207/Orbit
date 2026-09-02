@@ -38,6 +38,19 @@ const DEFAULT_CONFIG: AppConfig = migrateAppConfig({
   blur: true,
   theme: "system",
   pages: [{
+    id: "music",
+    name: "Music",
+    icon: "music-2",
+    type: "music",
+    enabled: true,
+    items: [
+      { id: "music-play", name: "Play", type: "media", target: "playpause", icon: "play", enabled: true },
+      { id: "music-next", name: "Next", type: "media", target: "next", icon: "skip-forward", enabled: true },
+      { id: "music-repeat", name: "Repeat", type: "media", target: "repeat", icon: "repeat", enabled: true },
+      { id: "music-shuffle", name: "Shuffle", type: "media", target: "shuffle", icon: "shuffle", enabled: true },
+      { id: "music-previous", name: "Previous", type: "media", target: "previous", icon: "skip-back", enabled: true },
+    ],
+  }, {
     id: "applications",
     name: "Applications",
     icon: "grid-3x3",
@@ -62,7 +75,7 @@ const DEFAULT_CONFIG: AppConfig = migrateAppConfig({
       },
     ],
   }],
-  defaultPageId: "applications",
+  defaultPageId: "music",
 });
 
 function App() {
@@ -197,7 +210,9 @@ function App() {
   const handleReset = useCallback(async () => {
     try {
       console.log("[Orbit] Resetting configuration...");
-      const resetConfig = await invoke<AppConfig>("reset_configuration");
+      const resetConfig = migrateAppConfig(
+        await invoke<AppConfig>("reset_configuration")
+      );
       setConfig(resetConfig);
       setDirtyConfig(resetConfig);
       setSaveStatusMessage("Settings reset to defaults.");
@@ -421,10 +436,6 @@ function App() {
     setActiveTab("nested");
   };
 
-  // Determine if live preview should be displayed alongside settings
-  const showLivePreview =
-    activeTab === "wheel" || activeTab === "appearance" || activeTab === "actions";
-
   return (
     <SettingsLayout
       activeTab={activeTab}
@@ -437,7 +448,12 @@ function App() {
       onSave={handleSave}
       onDiscard={handleDiscard}
     >
-      <div className={`orbit-tab-view ${showLivePreview ? "has-preview" : ""}`}>
+      <div className="orbit-tab-view has-preview">
+        {/* LIVE PREVIEW: persistent on every settings tab */}
+        <div className="orbit-preview-side-panel">
+          <LiveWheelPreview config={dirtyConfig} />
+        </div>
+
         <div className="orbit-tab-content-panel">
           {activeTab === "general" && (
             <GeneralSettings
@@ -501,12 +517,6 @@ function App() {
           )}
         </div>
 
-        {/* LIVE PREVIEW SIDE PANEL */}
-        {showLivePreview && (
-          <div className="orbit-preview-side-panel">
-            <LiveWheelPreview config={dirtyConfig} />
-          </div>
-        )}
       </div>
     </SettingsLayout>
   );

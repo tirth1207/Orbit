@@ -133,6 +133,21 @@ export const buildPageFromItems = (items: Action[] = [], fallbackName = "Applica
   items: items.map((item) => normalizeAction(item)),
 });
 
+export const createMusicPage = (): WheelPage => ({
+  id: "music",
+  name: "Music",
+  icon: "music-2",
+  type: "music",
+  enabled: true,
+  items: [
+    { id: "music-play", name: "Play", type: "media", target: "playpause", icon: "play", enabled: true },
+    { id: "music-next", name: "Next", type: "media", target: "next", icon: "skip-forward", enabled: true },
+    { id: "music-repeat", name: "Repeat", type: "media", target: "repeat", icon: "repeat", enabled: true },
+    { id: "music-shuffle", name: "Shuffle", type: "media", target: "shuffle", icon: "shuffle", enabled: true },
+    { id: "music-previous", name: "Previous", type: "media", target: "previous", icon: "skip-back", enabled: true },
+  ],
+});
+
 export const migrateAppConfig = (input: Partial<AppConfig> | Record<string, unknown> | null | undefined): AppConfig => {
   const source = (input ?? {}) as Partial<AppConfig> & Record<string, unknown>;
 
@@ -144,7 +159,9 @@ export const migrateAppConfig = (input: Partial<AppConfig> | Record<string, unkn
     ? rawPages.map((page, index) => normalizePage(page as Partial<WheelPage>, index))
     : [buildPageFromItems(legacyItems)];
 
-  const pages = migratedPages.length ? migratedPages : [buildPageFromItems(legacyItems)];
+  const pages = migratedPages.some((page) => page.id === "music")
+    ? migratedPages
+    : [createMusicPage(), ...migratedPages];
   const mergedItems = pages.flatMap((page) => page.items);
 
   return {
@@ -173,7 +190,7 @@ export const migrateAppConfig = (input: Partial<AppConfig> | Record<string, unkn
     items: mergedItems,
     theme: typeof source.theme === "string" ? source.theme : "system",
     configPath: typeof source.configPath === "string" ? source.configPath : undefined,
-    defaultPageId: typeof source.defaultPageId === "string" ? source.defaultPageId : pages[0]?.id,
+    defaultPageId: "music",
   };
 };
 

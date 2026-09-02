@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Sliders, Keyboard, Power, Info } from "lucide-react";
 import { type AppConfig } from "../../types/types";
 
@@ -11,6 +11,39 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   config,
   onChange,
 }) => {
+  const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
+
+  const formatShortcut = (shortcut: string) =>
+    shortcut
+      .split("+")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" + ");
+
+  const handleShortcutKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (event.key === "Escape") {
+      setIsRecordingShortcut(false);
+      return;
+    }
+
+    if (["Control", "Alt", "Shift", "Meta"].includes(event.key)) return;
+
+    const parts = [
+      event.ctrlKey ? "ctrl" : "",
+      event.altKey ? "alt" : "",
+      event.shiftKey ? "shift" : "",
+      event.metaKey ? "super" : "",
+      event.code.toLowerCase().replace(/^key/, "").replace(/^digit/, "num"),
+    ].filter(Boolean);
+
+    if (parts.length < 2) return;
+
+    onChange({ trigger: parts.join("+") });
+    setIsRecordingShortcut(false);
+  };
+
   return (
     <div className="orbit-section-panel">
       <div className="orbit-section-header">
@@ -24,7 +57,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
         {/* ENABLE ORBIT TOGGLE */}
         <div className="orbit-setting-card">
           <div className="orbit-card-left">
-            <div className="orbit-card-icon">
+          <div className="orbit-card-icon">
               <Power size={18} />
             </div>
             <div className="orbit-card-content">
@@ -53,8 +86,20 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
               <p>Shortcut key combination used to activate Orbit radial wheel.</p>
             </div>
           </div>
-          <div className="orbit-shortcut-badge">
-            <kbd>Ctrl</kbd> + <kbd>Space</kbd>
+          <div className="orbit-shortcut-editor">
+            <button
+              type="button"
+              className={`orbit-shortcut-badge ${isRecordingShortcut ? "is-recording" : ""}`}
+              onClick={() => setIsRecordingShortcut(true)}
+              onKeyDown={isRecordingShortcut ? handleShortcutKeyDown : undefined}
+              autoFocus={isRecordingShortcut}
+              aria-label="Change wheel opening shortcut"
+            >
+              {isRecordingShortcut ? "Press shortcut..." : formatShortcut(config.trigger)}
+            </button>
+            <span className="orbit-shortcut-hint">
+              {isRecordingShortcut ? "Esc to cancel" : "Click to change"}
+            </span>
           </div>
         </div>
 

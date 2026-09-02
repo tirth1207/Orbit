@@ -196,24 +196,27 @@ pub fn run() {
 
             config::init(app)?;
 
-            use tauri_plugin_global_shortcut::{
-                Code,
-                GlobalShortcutExt,
-                Modifiers,
-                Shortcut,
-            };
+            use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-            let shortcut = Shortcut::new(
-                Some(Modifiers::CONTROL),
-                Code::Space,
-            );
+            let trigger = app
+                .state::<ConfigState>()
+                .0
+                .lock()
+                .unwrap()
+                .settings
+                .trigger
+                .clone();
+            let shortcut = trigger.parse::<Shortcut>().unwrap_or_else(|error| {
+                eprintln!("[Orbit] Invalid configured shortcut '{}': {}. Using Ctrl+Space.", trigger, error);
+                "ctrl+space".parse::<Shortcut>().expect("default shortcut must parse")
+            });
 
             match app.global_shortcut().register(shortcut.clone()) {
                 Ok(_) => {
-                    println!("[Orbit] SUCCESS: Registered Ctrl+Space: {:?}", shortcut);
+                    println!("[Orbit] SUCCESS: Registered configured shortcut: {:?}", shortcut);
                 }
                 Err(error) => {
-                    eprintln!("[Orbit] ERROR: Failed to register Ctrl+Space: {}", error);
+                    eprintln!("[Orbit] ERROR: Failed to register configured shortcut: {}", error);
                 }
             }
 
@@ -313,6 +316,7 @@ pub fn run() {
             commands::reset_configuration,
             commands::toggle_enabled,
             commands::execute_action,
+            commands::media_control,
             commands::pick_file,
             commands::pick_folder,
             commands::open_wheel,

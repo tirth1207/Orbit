@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::process::Command;
 use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
 use crate::config::{self, ConfigState};
 use crate::types::*;
@@ -162,6 +164,18 @@ pub fn save_configuration(app: tauri::AppHandle, config: AppConfig) -> Result<Ap
         *cfg = new_cfg.clone();
     }
 
+    let shortcut: Shortcut = new_cfg
+        .settings
+        .trigger
+        .parse()
+        .map_err(|error| format!("Invalid global shortcut: {}", error))?;
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|error| format!("Failed to replace global shortcut: {}", error))?;
+    app.global_shortcut()
+        .register(shortcut)
+        .map_err(|error| format!("Failed to register global shortcut: {}", error))?;
+
     let result_app_config = config_to_app_config(&new_cfg);
 
     // Broadcast configuration-changed to all windows
@@ -314,6 +328,56 @@ pub fn execute_action(action: Action) -> Result<(), String> {
             }
         }
     }
+}
+
+/// Send a system-wide media command to the currently active player.
+#[tauri::command]
+pub fn media_control(action: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let virtual_key = match action.as_str() {
+            "next" => "0xB0",
+            "previous" => "0xB1",
+            "playpause" => "0xB3",
+            _ => return Ok(()),
+        };
+        let script = format!(
+            "Add-Type 'using System; using System.Runtime.InteropServices; public static class M {{ [DllImport(\"user32.dll\")] public static extern void keybd_event(byte k, byte s, uint f, UIntPtr e); }}'; [M]::keybd_event({}, 0, 0, [UIntPtr]::Zero); [M]::keybd_event({}, 0, 2, [UIntPtr]::Zero)",
+            virtual_key, virtual_key
+        );
+        Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-Command", &script]).status().map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let command = match action.as_str() {
+            "next" => "next",
+            "previous" => "previous",
+            "playpause" => "play-pause",
+            "shuffle" => "shuffle toggle",
+            "repeat" => "loop Track",
+            _ => return Ok(()),
+        };
+        Command::new("playerctl")
+            .args(command.split_whitespace())
+            .status()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let command = match action.as_str() {
+            "next" => "next track",
+            "previous" => "previous track",
+            "playpause" => "playpause",
+            "shuffle" => "set shuffle enabled to not shuffle",
+            "repeat" => "set song repeat to not song repeat",
+            _ => return Ok(()),
+        };
+        Command::new("osascript").args(["-e", &format!("tell application \"Music\" to {}", command)]).status().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 /// Show the radial wheel at screen coordinates.

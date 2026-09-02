@@ -434,6 +434,248 @@ kbd {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.orbit-shortcut-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.orbit-shortcut-badge {
+  cursor: pointer;
+  color: #f3f4f6;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.orbit-shortcut-badge:hover,
+.orbit-shortcut-badge.is-recording {
+  border-color: #818cf8;
+  background: rgba(99, 102, 241, 0.18);
+}
+
+.orbit-shortcut-hint {
+  color: #6b7280;
+  font-size: 10px;
+}
+
+/* Keep the settings shell calm and spacious while preserving existing controls. */
+.orbit-settings-app--minimal .orbit-settings-content {
+  padding: 28px 32px;
+}
+
+.orbit-settings-app--minimal .orbit-section-panel {
+  gap: 24px;
+}
+
+.orbit-settings-app--minimal .orbit-setting-card,
+.orbit-settings-app--minimal .orbit-card,
+.orbit-settings-app--minimal .orbit-info-card {
+  border-radius: 10px;
+}
+
+.orbit-settings-app--minimal .orbit-section-header h2 {
+  letter-spacing: -0.03em;
+}
+
+.orbit-settings-app--minimal {
+  background: #f4f6f7;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-settings-sidebar,
+.orbit-settings-app--minimal .orbit-settings-main,
+.orbit-settings-app--minimal .orbit-settings-header {
+  background: #ffffff;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-settings-sidebar {
+  border-right-color: #e5e7eb;
+}
+
+.orbit-settings-app--minimal .orbit-settings-main {
+  background: #f4f6f7;
+}
+
+.orbit-settings-app--minimal .orbit-settings-header {
+  border-bottom-color: #e5e7eb;
+}
+
+.orbit-settings-app--minimal .orbit-brand-title,
+.orbit-settings-app--minimal .orbit-section-header h2,
+.orbit-settings-app--minimal .orbit-card-content h4,
+.orbit-settings-app--minimal .orbit-card-title-bar h3 {
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-brand-subtitle,
+.orbit-settings-app--minimal .orbit-section-header p,
+.orbit-settings-app--minimal .orbit-card-content p,
+.orbit-settings-app--minimal .orbit-footer-tip {
+  color: #6b7280;
+}
+
+.orbit-settings-app--minimal .orbit-setting-card,
+.orbit-settings-app--minimal .orbit-card,
+.orbit-settings-app--minimal .orbit-info-card {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 4px 16px rgba(31, 41, 51, 0.06);
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-item {
+  color: #6b7280;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-item:hover {
+  background: #f3f4f6;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-tab-view {
+  align-items: stretch;
+  gap: 28px;
+}
+
+.orbit-settings-app--minimal .orbit-preview-side-panel {
+  order: -1;
+  width: min(42%, 520px);
+  min-width: 360px;
+}
+
+.orbit-settings-app--minimal .orbit-tab-content-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.orbit-settings-app--minimal .orbit-live-preview-card {
+  min-height: 560px;
+  background: #ffffff;
+  border-color: #dfe5e8;
+  box-shadow: 0 8px 28px rgba(31, 41, 51, 0.08);
+}
+
+.orbit-settings-app--minimal .orbit-preview-header {
+  background: #ffffff;
+  border-bottom-color: #e5e7eb;
+}
+
+.orbit-settings-app--minimal .orbit-preview-tag {
+  color: #2563eb;
+}
+
+.orbit-settings-app--minimal .orbit-preview-subtitle,
+.orbit-settings-app--minimal .orbit-item-count-text,
+.orbit-settings-app--minimal .orbit-field-hint {
+  color: #6b7280;
+}
+
+.orbit-settings-app--minimal .orbit-preview-viewport {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.92), transparent 34%),
+    linear-gradient(135deg, #dceeff 0%, #eef0ff 52%, #e1f8f2 100%);
+}
+
+.orbit-settings-app--minimal .orbit-card-title-bar,
+.orbit-settings-app--minimal .orbit-modal-footer {
+  background: #f8fafb;
+  border-color: #e5e7eb;
+}
+
+.orbit-settings-app--minimal .orbit-card-icon,
+.orbit-settings-app--minimal .orbit-action-icon-badge,
+.orbit-settings-app--minimal .orbit-icon-preview-box {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.orbit-settings-app--minimal .orbit-action-item,
+.orbit-settings-app--minimal .orbit-parent-selector-card,
+.orbit-settings-app--minimal .orbit-empty-state {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-action-item:hover {
+  background: #f8fafc;
+  border-color: #bfdbfe;
+}
+
+.orbit-settings-app--minimal .orbit-action-name,
+.orbit-settings-app--minimal .orbit-parent-selector-card label,
+.orbit-settings-app--minimal .orbit-empty-state h4,
+.orbit-settings-app--minimal .orbit-row-title {
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-action-target,
+.orbit-settings-app--minimal .orbit-sub-field label,
+.orbit-settings-app--minimal .orbit-type-tag {
+  color: #6b7280;
+}
+
+.orbit-settings-app--minimal .orbit-input,
+.orbit-settings-app--minimal .orbit-select,
+.orbit-settings-app--minimal .orbit-icon-picker-dropdown,
+.orbit-settings-app--minimal .orbit-json-preview-card {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-input:focus,
+.orbit-settings-app--minimal .orbit-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.orbit-settings-app--minimal .orbit-btn-secondary {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.orbit-settings-app--minimal .orbit-btn-secondary:hover:not(:disabled),
+.orbit-settings-app--minimal .orbit-btn-ghost:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-btn-primary {
+  background: #2563eb;
+}
+
+.orbit-settings-app--minimal .orbit-info-card {
+  color: #1d4ed8;
+}
+
+@media (max-width: 1050px) {
+  .orbit-settings-app--minimal .orbit-preview-side-panel {
+    min-width: 300px;
+  }
+}
+
+@media (max-width: 780px) {
+  .orbit-settings-app--minimal .orbit-tab-view {
+    flex-direction: column;
+  }
+
+  .orbit-settings-app--minimal .orbit-preview-side-panel {
+    width: 100%;
+    min-width: 0;
+    min-height: 360px;
+  }
+
+  .orbit-settings-app--minimal .orbit-live-preview-card {
+    min-height: 360px;
+  }
+}
+
 .orbit-info-card {
   display: flex;
   gap: 12px;
@@ -1252,6 +1494,234 @@ input:checked + .orbit-slider:before {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+
+/* Final minimal settings layout: the former sidebar becomes a tab bar. */
+.orbit-settings-app--minimal {
+  flex-direction: column;
+  background: #f4f6f8;
+  color: #1f2933;
+}
+
+.orbit-settings-app--minimal .orbit-settings-sidebar {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border-right: 0;
+  border-bottom: 1px solid #e1e6ea;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-header,
+.orbit-settings-app--minimal .orbit-sidebar-footer {
+  display: none;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-nav {
+  width: 100%;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.orbit-settings-app--minimal .orbit-nav-group-title {
+  display: none;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-item {
+  width: auto;
+  flex: 0 0 auto;
+  gap: 7px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #68727d;
+  text-align: center;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-item:hover {
+  background: #f1f4f6;
+  color: #26313a;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-item.is-active {
+  background: #e8f0ff;
+  border-color: #c8dcff;
+  color: #1769e0;
+}
+
+.orbit-settings-app--minimal .orbit-nav-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.orbit-settings-app--minimal .orbit-nav-badge {
+  padding: 2px 6px;
+  background: #eef1f4;
+  color: #68727d;
+}
+
+.orbit-settings-app--minimal .orbit-sidebar-item.is-active .orbit-nav-badge {
+  background: #d6e6ff;
+  color: #1769e0;
+}
+
+.orbit-settings-app--minimal .orbit-settings-main {
+  width: 100%;
+  min-height: 0;
+  background: #f4f6f8;
+}
+
+.orbit-settings-app--minimal .orbit-settings-header {
+  min-height: 52px;
+  height: auto;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid #e1e6ea;
+}
+
+.orbit-settings-app--minimal .orbit-settings-content {
+  padding: 24px 28px;
+}
+
+.orbit-settings-app--minimal .orbit-tab-view {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+  min-height: 100%;
+}
+
+.orbit-settings-app--minimal .orbit-preview-side-panel {
+  order: -1;
+  width: min(44%, 560px);
+  min-width: 360px;
+}
+
+.orbit-settings-app--minimal .orbit-tab-content-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.orbit-settings-app--minimal .orbit-live-preview-card,
+.orbit-settings-app--minimal .orbit-card,
+.orbit-settings-app--minimal .orbit-setting-card,
+.orbit-settings-app--minimal .orbit-action-item,
+.orbit-settings-app--minimal .orbit-parent-selector-card,
+.orbit-settings-app--minimal .orbit-empty-state,
+.orbit-settings-app--minimal .orbit-modal-container {
+  background: #ffffff;
+  border-color: #dfe5e9;
+  color: #26313a;
+  box-shadow: 0 5px 18px rgba(37, 52, 66, 0.06);
+}
+
+.orbit-settings-app--minimal .orbit-live-preview-card {
+  min-height: 540px;
+}
+
+.orbit-settings-app--minimal .orbit-preview-header,
+.orbit-settings-app--minimal .orbit-card-title-bar,
+.orbit-settings-app--minimal .orbit-modal-footer {
+  background: #f8fafb;
+  border-color: #e5e9ec;
+}
+
+.orbit-settings-app--minimal .orbit-preview-viewport {
+  background:
+    radial-gradient(circle at 25% 18%, rgba(255, 255, 255, 0.96), transparent 36%),
+    linear-gradient(135deg, #dceeff, #f0efff 55%, #e0f7f1);
+}
+
+.orbit-settings-app--minimal .orbit-section-header h2,
+.orbit-settings-app--minimal .orbit-card-title-bar h3,
+.orbit-settings-app--minimal .orbit-card-content h4,
+.orbit-settings-app--minimal .orbit-action-name,
+.orbit-settings-app--minimal .orbit-parent-selector-card label,
+.orbit-settings-app--minimal .orbit-empty-state h4,
+.orbit-settings-app--minimal .orbit-row-title,
+.orbit-settings-app--minimal .orbit-modal-header h3,
+.orbit-settings-app--minimal .orbit-form-field label {
+  color: #26313a;
+}
+
+.orbit-settings-app--minimal .orbit-section-header p,
+.orbit-settings-app--minimal .orbit-card-content p,
+.orbit-settings-app--minimal .orbit-action-target,
+.orbit-settings-app--minimal .orbit-sub-field label,
+.orbit-settings-app--minimal .orbit-field-hint,
+.orbit-settings-app--minimal .orbit-preview-subtitle,
+.orbit-settings-app--minimal .orbit-item-count-text {
+  color: #68727d;
+}
+
+.orbit-settings-app--minimal .orbit-input,
+.orbit-settings-app--minimal .orbit-select,
+.orbit-settings-app--minimal .orbit-icon-picker-dropdown,
+.orbit-settings-app--minimal .orbit-json-preview-card {
+  background: #ffffff;
+  border-color: #cfd8df;
+  color: #26313a;
+}
+
+.orbit-settings-app--minimal .orbit-input:focus,
+.orbit-settings-app--minimal .orbit-select:focus {
+  border-color: #4285f4;
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.13);
+}
+
+.orbit-settings-app--minimal .orbit-btn-secondary {
+  background: #ffffff;
+  border-color: #cfd8df;
+  color: #3d4a55;
+}
+
+.orbit-settings-app--minimal .orbit-btn-ghost {
+  color: #68727d;
+}
+
+.orbit-settings-app--minimal .orbit-btn-secondary:hover:not(:disabled),
+.orbit-settings-app--minimal .orbit-btn-ghost:hover:not(:disabled) {
+  background: #eef2f5;
+  color: #26313a;
+}
+
+.orbit-settings-app--minimal .orbit-btn-primary {
+  background: #2f76df;
+}
+
+.orbit-settings-app--minimal .orbit-card-icon,
+.orbit-settings-app--minimal .orbit-action-icon-badge,
+.orbit-settings-app--minimal .orbit-icon-preview-box {
+  background: #edf4ff;
+  color: #2f76df;
+}
+
+.orbit-settings-app--minimal .orbit-modal-overlay {
+  background: rgba(31, 41, 51, 0.28);
+  backdrop-filter: blur(5px);
+}
+
+@media (max-width: 850px) {
+  .orbit-settings-app--minimal .orbit-tab-view {
+    flex-direction: column;
+  }
+
+  .orbit-settings-app--minimal .orbit-preview-side-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .orbit-settings-app--minimal .orbit-live-preview-card {
+    min-height: 360px;
+  }
 }
 
 

@@ -4,46 +4,274 @@
   useRef,
   useState,
   type FC,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
+
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import type { Action } from "../../types/types";
 import type { RadialWheelProps } from "./types";
+
+/* ================================================================
+   CONSTANTS
+================================================================ */
 
 const START_ANGLE = -90;
 
 const DEFAULT_RADIUS = 180;
 const DEFAULT_ITEM_SIZE = 76;
 const DEFAULT_ICON_SIZE = 30;
-const NESTED_SECTOR_THICKNESS = 76;
-const NESTED_RING_GAP = 12;
 
 /*
- * Gap between neighboring sectors.
- */
-const SECTOR_GAP = 2;
-
-/*
- * Main donut.
- *
- * The larger the difference between these two values,
- * the thicker the white donut becomes.
+ * Main wheel inner radius.
  */
 const INNER_RADIUS = 78;
 
 /*
- * Extra thickness around the outside.
+ * Main wheel has no additional outer arc.
  */
-const OUTER_ARC_THICKNESS = 8;
+const OUTER_ARC_THICKNESS = 0;
+
+/*
+ * Distance between the main wheel and child wheel.
+ *
+ * Keep this small so children remain visually connected
+ * to their parent.
+ */
+const NESTED_RING_GAP = 18;
+
+/*
+ * Radial thickness of child sectors.
+ */
+const NESTED_SECTOR_THICKNESS = 88;
+
+/*
+ * Gap between root sectors.
+ */
+const SECTOR_GAP = 2;
+
+/*
+ * Very small angular gap between child sectors.
+ */
+const CHILD_SECTOR_GAP = 1;
+
+/*
+ * Maximum total spread of children.
+ */
+const MAX_CHILD_FAN_ANGLE = 58;
+
+/*
+ * Size of the child content container.
+ */
+const CHILD_CONTENT_SIZE = 70;
+
+/* ================================================================
+   ICON RESOLVER
+================================================================ */
+
+/*
+ * Convert any common icon naming format into a normalized name.
+ *
+ * Examples:
+ *
+ * "Search"       -> "search"
+ * "search"       -> "search"
+ * "search-icon"  -> "searchicon"
+ * "Code2"        -> "code2"
+ * "code-2"       -> "code2"
+ * "lucide:search" -> "search"
+ */
+const normalizeIconName = (
+  value: unknown
+): string => {
+  if (
+    typeof value !== "string"
+  ) {
+    return "";
+  }
+
+  return value
+    .trim()
+    .replace(
+      /^lucide[:/-]?/i,
+      ""
+    )
+    .replace(
+      /[^a-zA-Z0-9]/g,
+      ""
+    )
+    .toLowerCase();
+};
+
+/*
+ * Convert a normalized icon name to PascalCase.
+ *
+ * Since separators are already removed, this mainly
+ * capitalizes the first character.
+ */
+const toPascalCase = (
+  value: string
+): string => {
+  if (!value) {
+    return "";
+  }
+
+  return (
+    value.charAt(0).toUpperCase() +
+    value.slice(1)
+  );
+};
+
+/*
+ * Remove Icon suffix.
+ *
+ * Example:
+ *
+ * SearchIcon -> Search
+ */
+const removeIconSuffix = (
+  value: string
+): string => {
+  if (
+    value.endsWith("Icon")
+  ) {
+    return value.slice(
+      0,
+      -4
+    );
+  }
+
+  return value;
+};
+
+/*
+ * IMPORTANT:
+ *
+ * Lucide exports are not necessarily plain functions.
+ * Many are ForwardRefExoticComponent objects.
+ *
+ * Therefore we cast the whole Lucide namespace once
+ * instead of checking typeof candidate === "function".
+ *
+ * This also fixes TS2352.
+ */
+const lucideIconRegistry =
+  LucideIcons as unknown as Record<
+    string,
+    LucideIcon
+  >;
+
+/*
+ * Resolve icon from string.
+ */
+const resolveIcon = (
+  value: unknown
+): LucideIcon => {
+  if (
+    typeof value !== "string" ||
+    !value.trim()
+  ) {
+    return LucideIcons.Circle;
+  }
+
+  const normalized =
+    normalizeIconName(value);
+
+  if (!normalized) {
+    return LucideIcons.Circle;
+  }
+
+  const pascal =
+    toPascalCase(
+      normalized
+    );
+
+  const withoutIcon =
+    removeIconSuffix(
+      pascal
+    );
+
+  /*
+   * Try a few possible names.
+   */
+  const candidates = [
+    pascal,
+    withoutIcon,
+  ];
+
+  for (
+    const name of candidates
+  ) {
+    const icon =
+      lucideIconRegistry[
+        name
+      ];
+
+    if (icon) {
+      return icon;
+    }
+  }
+
+  /* Match every Lucide export, including names such as SkipForward. */
+  const normalizedMatch = Object.entries(
+    lucideIconRegistry
+  ).find(([name]) => {
+    const normalizedName = normalizeIconName(name);
+    return (
+      normalizedName === normalized ||
+      normalizedName.replace(/icon$/, "") === normalized
+    );
+  })?.[1];
+
+  if (normalizedMatch) {
+    return normalizedMatch;
+  }
+
+  /*
+   * Proper graphical fallback.
+   *
+   * Never render a text bullet.
+   */
+  return LucideIcons.Circle;
+};
+
+/*
+ * Render resolved Lucide icon.
+ */
+const renderIcon = (
+  icon: unknown,
+  className: string,
+  strokeWidth = 2
+) => {
+  const Icon =
+    resolveIcon(icon);
+
+  return (
+    <Icon
+      className={className}
+      strokeWidth={strokeWidth}
+      aria-hidden="true"
+    />
+  );
+};
 
 /* ================================================================
    HELPERS
 ================================================================ */
 
 const getEnabledItems = (
-  page: { items?: Action[] } | undefined
+  page:
+    | {
+        items?: Action[];
+      }
+    | undefined
 ) => {
-  return (page?.items ?? []).filter(
-    (item) => item.enabled
+  return (
+    page?.items ?? []
+  ).filter(
+    (item) =>
+      item.enabled
   );
 };
 
@@ -58,21 +286,24 @@ const polarToCartesian = (
   angle: number
 ) => {
   const radians =
-    (angle * Math.PI) / 180;
+    (angle * Math.PI) /
+    180;
 
   return {
     x:
       cx +
-      radius * Math.cos(radians),
+      radius *
+        Math.cos(radians),
 
     y:
       cy +
-      radius * Math.sin(radians),
+      radius *
+        Math.sin(radians),
   };
 };
 
 /* ================================================================
-   DONUT / SECTOR PATH
+   SECTOR PATH
 ================================================================ */
 
 const createSectorPath = (
@@ -116,7 +347,9 @@ const createSectorPath = (
     );
 
   const largeArcFlag =
-    endAngle - startAngle > 180
+    endAngle -
+      startAngle >
+    180
       ? 1
       : 0;
 
@@ -152,22 +385,53 @@ export const RadialWheel: FC<
   onItemHover,
   onClose,
 }) => {
+  /* ==============================================================
+     STATE
+  ============================================================== */
+
   const wheelRef =
-    useRef<HTMLDivElement>(null);
+    useRef<HTMLDivElement>(
+      null
+    );
 
-  const [mounted, setMounted] =
-    useState(false);
+  const [
+    mounted,
+    setMounted,
+  ] = useState(false);
 
-  const [activeRootId, setActiveRootId] =
-    useState<string | null>(null);
+  const [
+    activeRootId,
+    setActiveRootId,
+  ] = useState<
+    string | null
+  >(null);
 
-  const [activeChildIndex, setActiveChildIndex] =
-    useState<number | null>(null);
-  
-  const [pageDragX, setPageDragX] = useState(0);
-  const [isPageDragging, setIsPageDragging] = useState(false);
+  const [
+    activeChildIndex,
+    setActiveChildIndex,
+  ] = useState<
+    number | null
+  >(null);
 
-  const pagePointerStartX = useRef<number | null>(null);
+  const [
+    pageDragX,
+    setPageDragX,
+  ] = useState(0);
+
+  const [
+    isPageDragging,
+    setIsPageDragging,
+  ] = useState(false);
+
+  const [
+    isMusicPlaying,
+    setIsMusicPlaying,
+  ] = useState(false);
+
+  const pagePointerStartX =
+    useRef<
+      number | null
+    >(null);
 
   /* ==============================================================
      MOUNT
@@ -175,51 +439,64 @@ export const RadialWheel: FC<
 
   useEffect(() => {
     const frame =
-      window.requestAnimationFrame(() => {
-        setMounted(true);
-      });
+      window.requestAnimationFrame(
+        () => {
+          setMounted(true);
+        }
+      );
 
     return () =>
-      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(
+        frame
+      );
   }, []);
 
   /* ==============================================================
-     PAGES
+     ENABLED PAGES
   ============================================================== */
 
-  const enabledPages = useMemo(
-    () =>
-      pages.filter(
-        (page) => page.enabled
-      ),
-    [pages]
-  );
+  const enabledPages =
+    useMemo(
+      () =>
+        pages.filter(
+          (page) =>
+            page.enabled
+        ),
+      [pages]
+    );
 
-  const currentPage = useMemo(
-    () =>
-      enabledPages.find(
-        (page) =>
-          page.id === currentPageId
-      ) ??
-      enabledPages[0] ??
-      pages[0],
-    [
-      enabledPages,
-      currentPageId,
-      pages,
-    ]
-  );
-
-  const enabledItems = useMemo(
-    () =>
-      getEnabledItems(
-        currentPage
-      ),
-    [currentPage]
-  );
+  const currentPage =
+    useMemo(
+      () =>
+        enabledPages.find(
+          (page) =>
+            page.id ===
+            currentPageId
+        ) ??
+        enabledPages[0] ??
+        pages[0],
+      [
+        enabledPages,
+        currentPageId,
+        pages,
+      ]
+    );
 
   /* ==============================================================
-     CONFIG
+     ENABLED ROOT ITEMS
+  ============================================================== */
+
+  const enabledItems =
+    useMemo(
+      () =>
+        getEnabledItems(
+          currentPage
+        ),
+      [currentPage]
+    );
+
+  /* ==============================================================
+     DIMENSIONS
   ============================================================== */
 
   const radius =
@@ -234,40 +511,45 @@ export const RadialWheel: FC<
     config.iconSize ??
     DEFAULT_ICON_SIZE;
 
-  /*
-   * Main donut outer edge.
-   */
-  const outerRadius = radius;
+  const outerRadius =
+    radius;
+
+  const innerRadius =
+    Math.min(
+      INNER_RADIUS,
+      outerRadius - 40
+    );
 
   /*
-   * Main donut inner edge.
+   * Child ring starts just outside
+   * the main wheel.
    */
-  const innerRadius = Math.min(
-    INNER_RADIUS,
-    outerRadius - 40
-  );
-
-  /*
-   * Nested buttons sit outside
-   * the outer arc.
-   */
-  const nestedRadius =
+  const childRingInnerRadius =
     outerRadius +
     OUTER_ARC_THICKNESS +
     NESTED_RING_GAP;
 
   /*
-   * Extra room for buttons.
+   * Child ring outer boundary.
    */
-  const padding =
+  const childRingOuterRadius =
+    childRingInnerRadius +
+    NESTED_SECTOR_THICKNESS;
+
+  /*
+   * Give the SVG enough room for
+   * the child ring.
+   */
+  const svgPadding =
     Math.max(
       itemSize,
-      64
+      CHILD_CONTENT_SIZE,
+      72
     );
 
   const svgRadius =
-    nestedRadius +
-    padding;
+    childRingOuterRadius +
+    svgPadding;
 
   const svgSize =
     svgRadius * 2;
@@ -276,7 +558,7 @@ export const RadialWheel: FC<
     svgSize / 2;
 
   /* ==============================================================
-     SECTOR ANGLE
+     ROOT SECTOR ANGLE
   ============================================================== */
 
   const sectorAngle =
@@ -286,36 +568,37 @@ export const RadialWheel: FC<
       : 0;
 
   /* ==============================================================
-     LABEL POSITION
+     ROOT CONTENT RADIUS
   ============================================================== */
 
-  /*
-   * Put labels in the center
-   * of the large white sector.
-   */
-  const labelRadius =
-    (innerRadius +
-      outerRadius) /
-    2;
+  const rootContentRadius =
+    (
+      innerRadius +
+      outerRadius
+    ) / 2;
 
   /* ==============================================================
      ROOT POSITIONS
   ============================================================== */
 
-  const rootPositions = useMemo(
-    () => {
+  const rootPositions =
+    useMemo(() => {
       return enabledItems.map(
-        (item, index) => {
+        (
+          item,
+          index
+        ) => {
           const angle =
             START_ANGLE +
-            index * sectorAngle +
+            index *
+              sectorAngle +
             sectorAngle / 2;
 
           const position =
             polarToCartesian(
               center,
               center,
-              labelRadius,
+              rootContentRadius,
               angle
             );
 
@@ -328,21 +611,19 @@ export const RadialWheel: FC<
           };
         }
       );
-    },
-    [
+    }, [
       enabledItems,
       sectorAngle,
       center,
-      labelRadius,
-    ]
-  );
+      rootContentRadius,
+    ]);
 
   /* ==============================================================
      ACTIVE ROOT
   ============================================================== */
 
-  const activeParent = useMemo(
-    () => {
+  const activeParent =
+    useMemo(() => {
       if (!activeRootId) {
         return null;
       }
@@ -354,170 +635,280 @@ export const RadialWheel: FC<
             activeRootId
         ) ?? null
       );
-    },
-    [
+    }, [
       activeRootId,
       enabledItems,
-    ]
-  );
+    ]);
 
   /* ==============================================================
      ACTIVE CHILDREN
   ============================================================== */
 
   const activeChildren =
-    useMemo(
-      () =>
+    useMemo(() => {
+      return (
         activeParent?.children?.filter(
           (child) =>
             child.enabled
-        ) ?? [],
-      [activeParent]
-    );
+        ) ?? []
+      );
+    }, [
+      activeParent,
+    ]);
 
   /* ==============================================================
-     NESTED CHILD POSITIONS
+     CHILD GEOMETRY
   ============================================================== */
 
-  const nestedChildren = useMemo(() => {
-    if (!activeParent || activeChildren.length === 0) {
-      return [];
-    }
-
-    const parentIndex = enabledItems.findIndex(
-      (item) => item.id === activeParent.id
-    );
-
-    if (parentIndex < 0) {
-      return [];
-    }
-
-    /*
-    * Parent's CENTER angle.
-    *
-    * We use this only to determine where the
-    * child fan should appear.
-    */
-    const parentAngle =
-      START_ANGLE +
-      parentIndex * sectorAngle +
-      sectorAngle / 2;
-
-    /*
-    * Children are NOT restricted to the parent's
-    * 90° sector.
-    *
-    * Give the children their own comfortable fan.
-    */
-    const childCount = activeChildren.length;
-
-    /*
-    * Minimum angular space per child.
-    *
-    * This is deliberately much larger than
-    * sectorAngle / childCount.
-    */
-    const MIN_CHILD_ANGLE = 28;
-
-    /*
-    * Increase the fan as children are added.
-    */
-    const fanAngle = Math.max(
-      sectorAngle + 20,
-      childCount * MIN_CHILD_ANGLE
-    );
-
-    /*
-    * Never make the fan absurdly large.
-    */
-    const clampedFanAngle = Math.min(
-      fanAngle,
-      150
-    );
-
-    const childAngle =
-      childCount === 1
-        ? parentAngle
-        : clampedFanAngle /
-          (childCount - 1);
-
-    const fanStartAngle =
-      parentAngle -
-      clampedFanAngle / 2;
-
-    return activeChildren.map(
-      (child, index) => {
-        const angle =
-          childCount === 1
-            ? parentAngle
-            : fanStartAngle +
-              index * childAngle;
-
-        const position =
-          polarToCartesian(
-            center,
-            center,
-            nestedRadius,
-            angle
-          );
-
-        /*
-        * Each child owns a REAL sector.
-        *
-        * Make it smaller than the distance
-        * between children so there is breathing
-        * room between sectors.
-        */
-        const sectorHalfAngle =
-          childCount === 1
-            ? 22
-            : Math.min(
-                14,
-                childAngle * 0.38
-              );
-
-        return {
-          child,
-          index,
-          angle,
-
-          startAngle:
-            angle - sectorHalfAngle,
-
-          endAngle:
-            angle + sectorHalfAngle,
-
-          x: position.x,
-          y: position.y,
-        };
+  const nestedChildren =
+    useMemo(() => {
+      if (
+        !activeParent ||
+        activeChildren.length ===
+          0
+      ) {
+        return [];
       }
-    );
-  }, [
-    activeParent,
-    activeChildren,
-    enabledItems,
-    sectorAngle,
-    center,
-    nestedRadius,
-  ]);
 
-  const createNestedSectorPath = (
-    cx: number,
-    cy: number,
-    innerRadius: number,
-    outerRadius: number,
-    startAngle: number,
-    endAngle: number
-  ) => {
-    return createSectorPath(
-      cx,
-      cy,
-      innerRadius,
+      const parentIndex =
+        enabledItems.findIndex(
+          (item) =>
+            item.id ===
+            activeParent.id
+        );
+
+      if (
+        parentIndex < 0
+      ) {
+        return [];
+      }
+
+      /*
+       * ----------------------------------------------------------
+       * PARENT CENTER ANGLE
+       * ----------------------------------------------------------
+       */
+
+      const parentAngle =
+        START_ANGLE +
+        parentIndex *
+          sectorAngle +
+        sectorAngle / 2;
+
+      const childCount =
+        activeChildren.length;
+
+      /*
+       * ----------------------------------------------------------
+       * CHILD FAN
+       * ----------------------------------------------------------
+       *
+       * The old implementation allowed children to spread
+       * much too far around the wheel.
+       *
+       * This version deliberately keeps the children close
+       * to their parent.
+       *
+       * 1 child:
+       *      parent
+       *        |
+       *      child
+       *
+       * 2 children:
+       *
+       *        child
+       *          \
+       *          parent
+       *          /
+       *        child
+       *
+       * 3 children:
+       *
+       *       child
+       *          \
+       *       child
+       *          /
+       *       child
+       */
+
+      let fanAngle = 0;
+
+      if (childCount === 1) {
+        // One child stays directly aligned with the parent.
+        fanAngle = 0;
+      } else if (childCount === 2) {
+        // Keep the two-child layout tight.
+        fanAngle = 34;
+      } else if (childCount === 3) {
+        // Give three children a little more breathing room.
+        fanAngle = 58;
+      } else if (childCount === 4) {
+        // Four children need a noticeably wider fan.
+        fanAngle = 82;
+      } else if (childCount === 5) {
+        fanAngle = 96;
+      } else if (childCount === 6) {
+        fanAngle = 108;
+      } else {
+        // More children: progressively widen, but keep it controlled.
+        fanAngle = Math.min(
+          120,
+          108 + (childCount - 6) * 6
+        );
+      }
+
+/*
+ * Don't allow the children to spread completely
+ * around the wheel.
+ */
+fanAngle = Math.min(
+  fanAngle,
+  MAX_CHILD_FAN_ANGLE > 82
+    ? MAX_CHILD_FAN_ANGLE
+    : 120
+);
+
+      /*
+       * Distance between child centers.
+       */
+      const childStep =
+        childCount <= 1
+          ? 0
+          : fanAngle /
+            (childCount - 1);
+
+      /*
+       * Start angle of the child fan.
+       */
+      const fanStartAngle =
+        parentAngle -
+        fanAngle / 2;
+
+      /*
+       * ----------------------------------------------------------
+       * CHILD SECTOR RADII
+       * ----------------------------------------------------------
+       */
+
+      const childSectorInnerRadius =
+        outerRadius +
+        OUTER_ARC_THICKNESS +
+        NESTED_RING_GAP;
+
+      const childSectorOuterRadius =
+        childSectorInnerRadius +
+        NESTED_SECTOR_THICKNESS;
+
+      /*
+       * Put icon exactly in radial center.
+       */
+      const contentRadius =
+        (
+          childSectorInnerRadius +
+          childSectorOuterRadius
+        ) / 2;
+
+      return activeChildren.map(
+        (
+          child,
+          index
+        ) => {
+          /*
+           * One child stays exactly
+           * on the parent's center line.
+           */
+          const angle =
+            childCount === 1
+              ? parentAngle
+              : fanStartAngle +
+                index *
+                  childStep;
+
+          /*
+           * Exact center point of this
+           * child sector.
+           */
+          const position =
+            polarToCartesian(
+              center,
+              center,
+              contentRadius,
+              angle
+            );
+
+          /*
+           * ------------------------------------------------------
+           * SECTOR WIDTH
+           * ------------------------------------------------------
+           *
+           * For two children:
+           *
+           * center 1 ---- center 2
+           *
+           * each sector extends almost halfway
+           * toward the other.
+           *
+           * This removes the large empty gap.
+           */
+
+          let sectorHalfAngle: number;
+
+          if (
+            childCount === 1
+          ) {
+            sectorHalfAngle =
+              Math.min(
+                24,
+                sectorAngle *
+                  0.35
+              );
+          } else {
+            sectorHalfAngle =
+              Math.max(
+                10,
+                childStep / 2 -
+                  CHILD_SECTOR_GAP
+              );
+          }
+
+          return {
+            child,
+            index,
+            angle,
+
+            startAngle:
+              angle -
+              sectorHalfAngle,
+
+            endAngle:
+              angle +
+              sectorHalfAngle,
+
+            /*
+             * IMPORTANT:
+             *
+             * These are the actual center
+             * coordinates of the child sector.
+             */
+            x: position.x,
+            y: position.y,
+
+            innerRadius:
+              childSectorInnerRadius,
+
+            outerRadius:
+              childSectorOuterRadius,
+          };
+        }
+      );
+    }, [
+      activeParent,
+      activeChildren,
+      enabledItems,
+      sectorAngle,
+      center,
       outerRadius,
-      startAngle,
-      endAngle
-    );
-  };
+    ]);
 
   /* ==============================================================
      PAGE NAVIGATION
@@ -533,9 +924,11 @@ export const RadialWheel: FC<
   const previousPageId =
     enabledPages.length > 0
       ? enabledPages[
-          (pageIndex -
+          (
+            pageIndex -
             1 +
-            enabledPages.length) %
+            enabledPages.length
+          ) %
             enabledPages.length
         ]?.id
       : undefined;
@@ -543,7 +936,10 @@ export const RadialWheel: FC<
   const nextPageId =
     enabledPages.length > 0
       ? enabledPages[
-          (pageIndex + 1) %
+          (
+            pageIndex +
+            1
+          ) %
             enabledPages.length
         ]?.id
       : undefined;
@@ -556,8 +952,13 @@ export const RadialWheel: FC<
     item: Action,
     index: number
   ) => {
-    setActiveRootId(item.id);
-    setActiveChildIndex(null);
+    setActiveRootId(
+      item.id
+    );
+
+    setActiveChildIndex(
+      null
+    );
 
     onItemHover(
       index,
@@ -565,12 +966,19 @@ export const RadialWheel: FC<
     );
   };
 
-  const deactivateRoot = () => {
-    onItemHover(
-      null,
-      null
-    );
-  };
+  const deactivateRoot =
+    () => {
+      /*
+       * Do not close the child ring here.
+       *
+       * The pointer needs to be able to travel
+       * from the parent sector to the child sector.
+       */
+      onItemHover(
+        null,
+        null
+      );
+    };
 
   /* ==============================================================
      ROOT CLICK
@@ -580,8 +988,17 @@ export const RadialWheel: FC<
     item: Action,
     index: number
   ) => {
+    if (
+      currentPage?.type === "music" &&
+      item.type === "media" &&
+      item.target === "playpause"
+    ) {
+      setIsMusicPlaying((playing) => !playing);
+    }
+
     /*
-     * Parent item.
+     * If this item has children,
+     * open/close its child ring.
      */
     if (
       item.children &&
@@ -589,18 +1006,21 @@ export const RadialWheel: FC<
     ) {
       setActiveRootId(
         (previous) =>
-          previous === item.id
+          previous ===
+          item.id
             ? null
             : item.id
       );
 
-      setActiveChildIndex(null);
+      setActiveChildIndex(
+        null
+      );
 
       return;
     }
 
     /*
-     * Normal action.
+     * Normal root item.
      */
     onItemSelect(
       index,
@@ -630,121 +1050,290 @@ export const RadialWheel: FC<
   };
 
   /* ==============================================================
-     BUTTON SIZES
+     ICON SIZE
   ============================================================== */
-
-  const rootButtonSize =
-    itemSize >= 96
-      ? "h-20 w-32"
-      : itemSize >= 84
-        ? "h-[4.5rem] w-28"
-        : "h-16 w-24";
-
-  const childButtonSize =
-    itemSize >= 96
-      ? "h-20 w-20"
-      : itemSize >= 84
-        ? "h-[4.5rem] w-[4.5rem]"
-        : "h-14 w-14";
 
   const iconClass =
     iconSize >= 40
-      ? "text-4xl"
+      ? "h-10 w-10"
       : iconSize >= 32
-        ? "text-3xl"
+        ? "h-8 w-8"
         : iconSize >= 24
-          ? "text-2xl"
-          : "text-xl";
+          ? "h-6 w-6"
+          : "h-5 w-5";
 
-  const handlePagePointerDown = (
-    event: React.PointerEvent<SVGCircleElement>
-  ) => {
-    pagePointerStartX.current = event.clientX;
+  /* ==============================================================
+     CENTER PAGE DRAG
+  ============================================================== */
 
-    setIsPageDragging(true);
-    setPageDragX(0);
+  const handleCenterPointerDown =
+    (
+      event: ReactPointerEvent<SVGCircleElement>
+    ) => {
+      pagePointerStartX.current =
+        event.clientX;
 
-    event.currentTarget.setPointerCapture(
-      event.pointerId
+      setIsPageDragging(
+        true
+      );
+
+      setPageDragX(0);
+
+      event.currentTarget.setPointerCapture(
+        event.pointerId
+      );
+    };
+
+  const handleCenterPointerMove =
+    (
+      event: ReactPointerEvent<SVGCircleElement>
+    ) => {
+      if (
+        pagePointerStartX.current ===
+        null
+      ) {
+        return;
+      }
+
+      const rawDelta =
+        event.clientX -
+        pagePointerStartX.current;
+
+      /*
+       * Add resistance to dragging.
+       */
+      const resistedDelta =
+        rawDelta * 0.55;
+
+      const clampedDelta =
+        Math.max(
+          -42,
+          Math.min(
+            42,
+            resistedDelta
+          )
+        );
+
+      setPageDragX(
+        clampedDelta
+      );
+    };
+
+  const handleCenterPointerUp =
+    (
+      event: ReactPointerEvent<SVGCircleElement>
+    ) => {
+      if (
+        pagePointerStartX.current ===
+        null
+      ) {
+        return;
+      }
+
+      const delta =
+        event.clientX -
+        pagePointerStartX.current;
+
+      const threshold =
+        45;
+
+      /*
+       * Drag left -> next page.
+       */
+      if (
+        delta <
+          -threshold &&
+        nextPageId
+      ) {
+        onPageChange(
+          nextPageId
+        );
+      }
+
+      /*
+       * Drag right -> previous page.
+       */
+      if (
+        delta >
+          threshold &&
+        previousPageId
+      ) {
+        onPageChange(
+          previousPageId
+        );
+      }
+
+      pagePointerStartX.current =
+        null;
+
+      setPageDragX(0);
+
+      setIsPageDragging(
+        false
+      );
+
+      try {
+        event.currentTarget.releasePointerCapture(
+          event.pointerId
+        );
+      } catch {
+        /*
+         * Pointer capture may already
+         * have been released.
+         */
+      }
+    };
+
+  const handleCenterPointerCancel =
+    () => {
+      pagePointerStartX.current =
+        null;
+
+      setPageDragX(0);
+
+      setIsPageDragging(
+        false
+      );
+    };
+
+  /* ==============================================================
+     ROOT BUTTON SIZE
+  ============================================================== */
+
+  const rootButtonWidth =
+    Math.max(
+      74,
+      itemSize
     );
-  };
 
-  const handlePagePointerMove = (
-    event: React.PointerEvent<SVGCircleElement>
-  ) => {
-    if (
-      pagePointerStartX.current === null
-    ) {
-      return;
-    }
-
-    const delta =
-      event.clientX -
-      pagePointerStartX.current;
-
-    /*
-    * Limit the amount the center can
-    * visually follow the finger/mouse.
-    */
-    const clampedDelta = Math.max(
-      -70,
-      Math.min(70, delta)
+  const rootButtonHeight =
+    Math.max(
+      64,
+      itemSize
     );
 
-    setPageDragX(clampedDelta);
-  };
+  /* ==============================================================
+     OUTSIDE CLICK
+  ============================================================== */
 
-  const handlePagePointerUp = (
-    event: React.PointerEvent<SVGCircleElement>
-  ) => {
-    if (
-      pagePointerStartX.current === null
-    ) {
-      return;
-    }
+  useEffect(() => {
+    const isAngleInRange = (
+      angle: number,
+      startAngle: number,
+      endAngle: number
+    ) => {
+      const normalize = (value: number) =>
+        ((value % 360) + 360) % 360;
 
-    const delta =
-      event.clientX -
-      pagePointerStartX.current;
+      const normalizedAngle = normalize(angle);
+      const normalizedStart = normalize(startAngle);
+      const normalizedEnd = normalize(endAngle);
 
-    const SWIPE_THRESHOLD = 45;
+      return normalizedStart <= normalizedEnd
+        ? normalizedAngle >= normalizedStart &&
+            normalizedAngle <= normalizedEnd
+        : normalizedAngle >= normalizedStart ||
+            normalizedAngle <= normalizedEnd;
+    };
 
-    /*
-    * Swipe left -> next page
-    */
-    if (
-      delta < -SWIPE_THRESHOLD &&
-      nextPageId
-    ) {
-      onPageChange(nextPageId);
-    }
+    const handleDocumentPointerDown = (
+      event: PointerEvent
+    ) => {
+      const wheelElement = wheelRef.current;
 
-    /*
-    * Swipe right -> previous page
-    */
-    if (
-      delta > SWIPE_THRESHOLD &&
-      previousPageId
-    ) {
-      onPageChange(previousPageId);
-    }
+      if (!wheelElement) {
+        return;
+      }
 
-    pagePointerStartX.current = null;
+      const target = event.target;
 
-    setPageDragX(0);
-    setIsPageDragging(false);
+      /* Keep controls such as the page switcher interactive. */
+      const interactiveTarget =
+        target instanceof Element
+          ? target.closest(
+              "button, a, input, select, textarea"
+            )
+          : null;
 
-    event.currentTarget.releasePointerCapture(
-      event.pointerId
+      if (
+        interactiveTarget &&
+        wheelElement.contains(interactiveTarget)
+      ) {
+        return;
+      }
+
+      const svg = wheelElement.querySelector("svg");
+      const bounds = svg?.getBoundingClientRect();
+
+      if (!svg || !bounds || bounds.width === 0) {
+        return;
+      }
+
+      const scale =
+        svgSize / bounds.width;
+      const x =
+        (event.clientX - bounds.left) * scale;
+      const y =
+        (event.clientY - bounds.top) * scale;
+      const dx = x - center;
+      const dy = y - center;
+      const distance = Math.sqrt(
+        dx * dx + dy * dy
+      );
+
+      /* The center hub is part of the wheel even though it is not a donut. */
+      const insideCenter =
+        distance <= innerRadius + 6;
+      const insideMainDonut =
+        distance >= innerRadius - 6 &&
+        distance <= outerRadius + 6;
+
+      if (insideCenter || insideMainDonut) {
+        return;
+      }
+
+      const insideChildSector =
+        nestedChildren.some(
+          ({
+            startAngle,
+            endAngle,
+            innerRadius: childInnerRadius,
+            outerRadius: childOuterRadius,
+          }) =>
+            distance >= childInnerRadius - 6 &&
+            distance <= childOuterRadius + 6 &&
+            isAngleInRange(
+              (Math.atan2(dy, dx) * 180) /
+                Math.PI,
+              startAngle,
+              endAngle
+            )
+        );
+
+      if (!insideChildSector) {
+        onClose();
+      }
+    };
+
+    document.addEventListener(
+      "pointerdown",
+      handleDocumentPointerDown
     );
-  };
 
-  const handlePagePointerCancel = () => {
-    pagePointerStartX.current = null;
+    return () =>
+      document.removeEventListener(
+        "pointerdown",
+        handleDocumentPointerDown
+      );
+  }, [
+    center,
+    innerRadius,
+    nestedChildren,
+    onClose,
+    outerRadius,
+    svgSize,
+  ]);
 
-    setPageDragX(0);
-    setIsPageDragging(false);
-  };
   /* ==============================================================
      RENDER
   ============================================================== */
@@ -754,9 +1343,11 @@ export const RadialWheel: FC<
       ref={wheelRef}
       className={`
         relative
+
         flex
         items-center
         justify-center
+
         select-none
 
         transition-all
@@ -768,193 +1359,134 @@ export const RadialWheel: FC<
             ? "scale-100 opacity-100"
             : "scale-95 opacity-0"
         }
+
+        ${currentPage?.type === "music" ? "music-wheel" : ""}
       `}
     >
       <svg
+        width={svgSize}
+        height={svgSize}
+        viewBox={`0 0 ${svgSize} ${svgSize}`}
         className="
           relative
           z-10
           overflow-visible
         "
-        width={svgSize}
-        height={svgSize}
-        viewBox={`0 0 ${svgSize} ${svgSize}`}
         aria-label="Radial navigation"
       >
-        {/* ========================================================
-            BASE WHITE DONUT
-        ========================================================= */}
+        {/* ======================================================
+            MAIN WHEEL
+        ====================================================== */}
 
         <circle
           cx={center}
           cy={center}
           r={
-            (innerRadius +
-              outerRadius) /
-            2
+            (
+              innerRadius +
+              outerRadius
+            ) / 2
           }
-          className="
-            fill-none
-            stroke-white
-          "
+          fill="none"
+          stroke="white"
           strokeWidth={
             outerRadius -
             innerRadius
           }
         />
 
-        {/* ========================================================
-            INNER BLACK CUTOUT
-        ========================================================= */}
+        {/* ======================================================
+            CENTER PAGE SWITCHER
+        ====================================================== */}
 
-{/* ============================================================
-    CENTER PAGE SWITCHER
-    - Drag left  -> next page
-    - Drag right -> previous page
-    - Tiny arrows for direct navigation
-    - Page dots for direct navigation
-    ============================================================ */}
+        <g
+          className={`
+            select-none
 
-      <g
-        className={`
-          select-none
-          ${isPageDragging ? "cursor-grabbing" : "cursor-grab"}
-        `}
-      >
-        {/* ----------------------------------------------------------
-            CENTER BACKGROUND
-            ---------------------------------------------------------- */}
-
-        <circle
-          cx={center}
-          cy={center}
-          r={innerRadius - 2}
-          className="
-            fill-black/10
-
-            touch-none
-
-            transition-transform
-            duration-300
-            ease-[cubic-bezier(0.22,1,0.36,1)]
-          "
-          style={{
-            transform: `translate(${pageDragX}px, 0px)`,
-            transformOrigin: `${center}px ${center}px`,
-          }}
-          onPointerDown={(event) => {
-            pagePointerStartX.current = event.clientX;
-
-            setIsPageDragging(true);
-            setPageDragX(0);
-
-            event.currentTarget.setPointerCapture(
-              event.pointerId
-            );
-          }}
-          onPointerMove={(event) => {
-            if (pagePointerStartX.current === null) {
-              return;
+            ${
+              isPageDragging
+                ? "cursor-grabbing"
+                : "cursor-grab"
             }
-
-            const rawDelta =
-              event.clientX -
-              pagePointerStartX.current;
-
-            /*
-            * Small amount of resistance makes
-            * the interaction feel physical.
-            */
-            const resistedDelta =
-              rawDelta * 0.55;
-
-            const clampedDelta = Math.max(
-              -42,
-              Math.min(42, resistedDelta)
-            );
-
-            setPageDragX(clampedDelta);
-          }}
-          onPointerUp={(event) => {
-            if (
-              pagePointerStartX.current === null
-            ) {
-              return;
-            }
-
-            const delta =
-              event.clientX -
-              pagePointerStartX.current;
-
-            const SWIPE_THRESHOLD = 45;
-
-            if (
-              delta < -SWIPE_THRESHOLD &&
-              nextPageId
-            ) {
-              onPageChange(nextPageId);
-            }
-
-            if (
-              delta > SWIPE_THRESHOLD &&
-              previousPageId
-            ) {
-              onPageChange(previousPageId);
-            }
-
-            pagePointerStartX.current = null;
-            setPageDragX(0);
-            setIsPageDragging(false);
-
-            event.currentTarget.releasePointerCapture(
-              event.pointerId
-            );
-          }}
-          onPointerCancel={() => {
-            pagePointerStartX.current = null;
-            setPageDragX(0);
-            setIsPageDragging(false);
-          }}
-        />
-
-        {/* ----------------------------------------------------------
-            CENTER CONTENT
-            ---------------------------------------------------------- */}
-
-        <foreignObject
-          x={center - (innerRadius - 2)}
-          y={center - (innerRadius - 2)}
-          width={(innerRadius - 2) * 2}
-          height={(innerRadius - 2) * 2}
-          className="
-            pointer-events-none
-            overflow-visible
-          "
+          `}
         >
-          <div
+          <circle
+            cx={center}
+            cy={center}
+            r={
+              innerRadius - 2
+            }
             className="
-              flex
-              h-full
-              w-full
-              items-center
-              justify-center
+              fill-black/10
+              touch-none
             "
             style={{
-              transform: `translate(${pageDragX}px, 0px)`,
+              transform:
+                `translate(${pageDragX}px, 0px)`,
+
+              transformOrigin:
+                `${center}px ${center}px`,
             }}
+            onPointerDown={
+              handleCenterPointerDown
+            }
+            onPointerMove={
+              handleCenterPointerMove
+            }
+            onPointerUp={
+              handleCenterPointerUp
+            }
+            onPointerCancel={
+              handleCenterPointerCancel
+            }
+          />
+
+          <foreignObject
+            x={
+              center -
+              (
+                innerRadius -
+                2
+              )
+            }
+            y={
+              center -
+              (
+                innerRadius -
+                2
+              )
+            }
+            width={
+              (
+                innerRadius -
+                2
+              ) * 2
+            }
+            height={
+              (
+                innerRadius -
+                2
+              ) * 2
+            }
+            className="
+              pointer-events-none
+              overflow-visible
+            "
           >
             <div
               className="
                 flex
-                flex-col
+                h-full
+                w-full
+
                 items-center
                 justify-center
               "
+              style={{
+                transform:
+                  `translate(${pageDragX}px, 0px)`,
+              }}
             >
-              {/* ----------------------------------------------------
-                  PAGE NAVIGATION ROW
-                  ---------------------------------------------------- */}
-
               <div
                 className="
                   flex
@@ -968,30 +1500,28 @@ export const RadialWheel: FC<
                 <button
                   type="button"
                   aria-label="Previous page"
-                  disabled={!previousPageId}
+                  disabled={
+                    !previousPageId
+                  }
                   className="
                     pointer-events-auto
 
                     flex
-                    h-5
-                    w-5
+                    h-6
+                    w-6
                     shrink-0
+
                     items-center
                     justify-center
 
                     rounded-full
 
-                    text-[15px]
-                    leading-none
+                    text-lg
                     text-white
 
                     transition-all
-                    duration-150
-                    ease-out
 
-                    hover:bg-black/5
-                    hover:text-white
-
+                    hover:bg-white/10
                     active:scale-90
 
                     disabled:pointer-events-none
@@ -999,22 +1529,19 @@ export const RadialWheel: FC<
 
                     focus-visible:outline-none
                     focus-visible:ring-1
-                    focus-visible:ring-black/30
+                    focus-visible:ring-white/40
                   "
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onPointerMove={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onPointerUp={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
+                  onClick={(
+                    event
+                  ) => {
                     event.stopPropagation();
 
-                    if (previousPageId) {
-                      onPageChange(previousPageId);
+                    if (
+                      previousPageId
+                    ) {
+                      onPageChange(
+                        previousPageId
+                      );
                     }
                   }}
                 >
@@ -1023,9 +1550,8 @@ export const RadialWheel: FC<
 
                 {/* PAGE NAME */}
 
-                <div
+                <span
                   className="
-                    min-w-0
                     max-w-[120px]
 
                     overflow-hidden
@@ -1039,44 +1565,39 @@ export const RadialWheel: FC<
                     tracking-tight
 
                     text-white
-
-                    transition-all
-                    duration-300
-                    ease-[cubic-bezier(0.22,1,0.36,1)]
                   "
                 >
-                  {currentPage?.name ?? "Orbit"}
-                </div>
+                  {currentPage?.name ??
+                    "Orbit"}
+                </span>
 
                 {/* NEXT */}
 
                 <button
                   type="button"
                   aria-label="Next page"
-                  disabled={!nextPageId}
+                  disabled={
+                    !nextPageId
+                  }
                   className="
                     pointer-events-auto
 
                     flex
-                    h-5
-                    w-5
+                    h-6
+                    w-6
                     shrink-0
+
                     items-center
                     justify-center
 
                     rounded-full
 
-                    text-[15px]
-                    leading-none
+                    text-lg
                     text-white
 
                     transition-all
-                    duration-150
-                    ease-out
 
-                    hover:bg-black/5
-                    hover:text-white
-
+                    hover:bg-white/10
                     active:scale-90
 
                     disabled:pointer-events-none
@@ -1084,70 +1605,49 @@ export const RadialWheel: FC<
 
                     focus-visible:outline-none
                     focus-visible:ring-1
-                    focus-visible:ring-black/30
+                    focus-visible:ring-white/40
                   "
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onPointerMove={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onPointerUp={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
+                  onClick={(
+                    event
+                  ) => {
                     event.stopPropagation();
 
-                    if (nextPageId) {
-                      onPageChange(nextPageId);
+                    if (
+                      nextPageId
+                    ) {
+                      onPageChange(
+                        nextPageId
+                      );
                     }
                   }}
                 >
                   ›
                 </button>
               </div>
-
             </div>
-          </div>
-        </foreignObject>
-      </g>
+          </foreignObject>
+        </g>
 
-        {/* ========================================================
-            OUTER WHITE RING
-        ========================================================= */}
-
-        <circle
-          cx={center}
-          cy={center}
-          r={
-            outerRadius +
-            OUTER_ARC_THICKNESS /
-              2
-          }
-          className="
-            pointer-events-none
-            fill-none
-            stroke-white
-          "
-          strokeWidth={
-            OUTER_ARC_THICKNESS
-          }
-        />
-
-        {/* ========================================================
-            SECTORS
-        ========================================================= */}
+        {/* ======================================================
+            ROOT SECTORS
+        ====================================================== */}
 
         {enabledItems.map(
-          (item, index) => {
+          (
+            item,
+            index
+          ) => {
             const startAngle =
               START_ANGLE +
-              index * sectorAngle +
+              index *
+                sectorAngle +
               SECTOR_GAP;
 
             const endAngle =
               START_ANGLE +
-              (index + 1) *
+              (
+                index + 1
+              ) *
                 sectorAngle -
               SECTOR_GAP;
 
@@ -1155,9 +1655,6 @@ export const RadialWheel: FC<
               activeRootId ===
               item.id;
 
-            /*
-             * MAIN SECTOR
-             */
             const sectorPath =
               createSectorPath(
                 center,
@@ -1168,47 +1665,18 @@ export const RadialWheel: FC<
                 endAngle
               );
 
-            const outerArcStartAngle =
-              START_ANGLE +
-              index * sectorAngle;
-
-            const outerArcEndAngle =
-              START_ANGLE +
-              (index + 1) * sectorAngle;
-
-            const outerArcPath =
-              createSectorPath(
-                center,
-                center,
-                outerRadius - 1,
-                outerRadius + OUTER_ARC_THICKNESS,
-                outerArcStartAngle,
-                outerArcEndAngle
-              );
-
-            /*
-             * INNER ARC
-             */
-            const innerArcPath =
-              createSectorPath(
-                center,
-                center,
-                innerRadius - 5,
-                innerRadius + 5,
-                startAngle,
-                endAngle
-              );
-
             return (
               <g
-                key={`sector-${item.id}`}
+                key={
+                  `root-sector-${item.id}`
+                }
               >
-                {/* ==================================================
-                    MAIN LARGE SECTOR
-                =================================================== */}
+                {/* ROOT SECTOR */}
 
                 <path
-                  d={sectorPath}
+                  d={
+                    sectorPath
+                  }
                   onMouseEnter={() =>
                     activateRoot(
                       item,
@@ -1226,6 +1694,9 @@ export const RadialWheel: FC<
                   }
                   className={`
                     cursor-pointer
+
+                    ${currentPage?.type === "music" ? "music-sector" : ""}
+
                     transition-colors
                     duration-150
 
@@ -1245,53 +1716,21 @@ export const RadialWheel: FC<
                   strokeLinejoin="round"
                 />
 
-                {/* ==================================================
-                    OUTER ARC SEGMENT
-
-                    This is interactive too.
-                =================================================== */}
+                {/* INNER EDGE */}
 
                 <path
-                  d={outerArcPath}
-                  onMouseEnter={() =>
-                    activateRoot(
-                      item,
-                      index
-                    )
-                  }
-                  onMouseLeave={
-                    deactivateRoot
-                  }
-                  onClick={() =>
-                    handleRootClick(
-                      item,
-                      index
-                    )
-                  }
-                  className={`
-                    cursor-pointer
-                    transition-colors
-                    duration-150
-
-                    ${
-                      isActive
-                        ? "fill-blue-700"
-                        : "fill-white"
-                    }
-                  `}
-                />
-
-                {/* ==================================================
-                    INNER ARC
-                =================================================== */}
-
-                <path
-                  d={innerArcPath}
+                  d={createSectorPath(
+                    center,
+                    center,
+                    innerRadius -
+                      5,
+                    innerRadius +
+                      5,
+                    startAngle,
+                    endAngle
+                  )}
                   className={`
                     pointer-events-none
-
-                    transition-colors
-                    duration-150
 
                     ${
                       isActive
@@ -1305,105 +1744,13 @@ export const RadialWheel: FC<
           }
         )}
 
-        {/* ========================================================
-            SECTOR DIVIDERS
-        ========================================================= */}
+        {/* ======================================================
+            ROOT DIVIDERS
+        ====================================================== */}
 
-        {enabledItems.map(
-          (_, index) => {
-            const angle =
-              START_ANGLE +
-              index * sectorAngle;
-
-            const inner =
-              polarToCartesian(
-                center,
-                center,
-                innerRadius - 6,
-                angle
-              );
-
-            const outer =
-              polarToCartesian(
-                center,
-                center,
-                outerRadius +
-                  OUTER_ARC_THICKNESS,
-                angle
-              );
-
-            return (
-              <line
-                key={`divider-${index}`}
-                x1={inner.x}
-                y1={inner.y}
-                x2={outer.x}
-                y2={outer.y}
-                className="
-                  pointer-events-none
-                  stroke-[#0b0b0b]
-                "
-                strokeWidth="3"
-              />
-            );
-          }
-        )}
-
-        {/* ========================================================
-            NESTED CONNECTORS
-        ========================================================= */}
-
-        {activeParent &&
-          nestedChildren.length >
-            0 &&
-          nestedChildren.map(
-            ({
-              child,
-              x,
-              y,
-            }) => {
-              const parentIndex =
-                enabledItems.findIndex(
-                  (item) =>
-                    item.id ===
-                    activeParent.id
-                );
-
-              const parentAngle =
-                START_ANGLE +
-                parentIndex *
-                  sectorAngle +
-                sectorAngle / 2;
-
-              const parent =
-                polarToCartesian(
-                  center,
-                  center,
-                  outerRadius +
-                    OUTER_ARC_THICKNESS,
-                  parentAngle
-                );
-
-              return (
-                <line
-                  key={`connector-${child.id}`}
-                  x1={parent.x}
-                  y1={parent.y}
-                  x2={x}
-                  y2={y}
-                  className="
-                    pointer-events-none
-                    stroke-white
-                  "
-                  strokeWidth="4"
-                />
-              );
-            }
-          )}
-
-        {/* ========================================================
-            ROOT BUTTONS / LABELS
-        ========================================================= */}
+        {/* ======================================================
+            ROOT CONTENT
+        ====================================================== */}
 
         {rootPositions.map(
           ({
@@ -1418,20 +1765,24 @@ export const RadialWheel: FC<
 
             return (
               <foreignObject
-                key={`root-${item.id}`}
+                key={
+                  `root-content-${item.id}`
+                }
                 x={
                   x -
-                  itemSize * 0.7
+                  rootButtonWidth /
+                    2
                 }
                 y={
                   y -
-                  itemSize * 0.45
+                  rootButtonHeight /
+                    2
                 }
                 width={
-                  itemSize * 1.4
+                  rootButtonWidth
                 }
                 height={
-                  itemSize * 0.9
+                  rootButtonHeight
                 }
                 className="
                   overflow-visible
@@ -1459,23 +1810,23 @@ export const RadialWheel: FC<
                   }
                   className={`
                     group
-                    ${rootButtonSize}
-
-                    relative
 
                     flex
                     h-full
                     w-full
 
+                    flex-col
                     items-center
                     justify-center
+
+                    gap-1
 
                     border-0
                     bg-transparent
 
                     outline-none
 
-                    transition-colors
+                    transition-all
                     duration-150
 
                     ${
@@ -1488,126 +1839,119 @@ export const RadialWheel: FC<
                     focus-visible:ring-blue-700
                   `}
                 >
+                  {/* ROOT ICON */}
+
                   <span
-                    className="
+                    className={`
                       flex
-                      flex-col
+                      shrink-0
+
                       items-center
                       justify-center
-                      gap-1
-                    "
+
+                      ${iconClass}
+
+                      leading-none
+
+                      transition-transform
+                      duration-150
+
+                      group-hover:scale-105
+                    `}
                   >
-                    {/* ==================================================
-                        ICON
-                    =================================================== */}
-
-                    <span
-                      className={`
-                        ${iconClass}
-
-                        leading-none
-
-                        transition-transform
-                        duration-150
-
-                        group-hover:scale-105
-                      `}
-                    >
-                      {item.name ??
-                        "•"}
-                    </span>
-
-                    {/* ==================================================
-                        LABEL
-                    =================================================== */}
-
-                    {config.showLabels !==
-                      false && (
-                      <span
-                        className="
-                          max-w-24
-                          truncate
-
-                          text-[11px]
-                          font-medium
-                          tracking-wide
-                        "
-                      >
-                        {item.name}
-                      </span>
+                    {renderIcon(
+                      item.icon,
+                      "h-full w-full"
                     )}
                   </span>
+
+                  {/* ROOT LABEL */}
+
+                  {/* {config.showLabels !==
+                    false && ( */}
+                    <span
+                      className="
+                        max-w-[90px]
+
+                        overflow-hidden
+                        text-ellipsis
+                        whitespace-nowrap
+
+                        text-center
+
+                        text-[10px]
+                        font-medium
+                        leading-tight
+                      "
+                    >
+                      {item.name}
+                    </span>
+                  {/* )} */}
                 </button>
               </foreignObject>
             );
           }
         )}
 
-        {/* ========================================================
-            NESTED CHILDREN
-        ========================================================= */}
+        {/* ======================================================
+            CHILD SECTORS
+        ====================================================== */}
 
         {activeParent &&
-          nestedChildren.length > 0 &&
+          nestedChildren.length >
+            0 &&
           nestedChildren.map(
             ({
               child,
               index,
-              angle,
               startAngle,
               endAngle,
               x,
               y,
+              innerRadius:
+                childInnerRadius,
+              outerRadius:
+                childOuterRadius,
             }) => {
               const isActive =
-                activeChildIndex === index;
-
-              /*
-              * Child sector starts outside the main wheel.
-              */
-              const childSectorInnerRadius =
-                outerRadius +
-                OUTER_ARC_THICKNESS +
-                NESTED_RING_GAP;
-
-              /*
-              * Give the child sector enough radial depth
-              * for the button/label.
-              */
-              const childSectorOuterRadius =
-                childSectorInnerRadius +
-                NESTED_SECTOR_THICKNESS;
+                activeChildIndex ===
+                index;
 
               const childSectorPath =
                 createSectorPath(
                   center,
                   center,
-                  childSectorInnerRadius,
-                  childSectorOuterRadius,
+                  childInnerRadius,
+                  childOuterRadius,
                   startAngle,
                   endAngle
                 );
 
+              const parentIndex =
+                enabledItems.findIndex(
+                  (item) =>
+                    item.id ===
+                    activeParent.id
+                );
+
               return (
                 <g
-                  key={`child-${child.id}`}
-                  className="group"
+                  key={
+                    `child-${child.id}`
+                  }
                 >
                   {/* ==================================================
                       CHILD SECTOR
-                  =================================================== */}
+                  ================================================== */}
 
                   <path
-                    d={childSectorPath}
+                    d={
+                      childSectorPath
+                    }
                     onMouseEnter={() => {
-                      setActiveChildIndex(index);
-
-                      const parentIndex =
-                        enabledItems.findIndex(
-                          (item) =>
-                            item.id ===
-                            activeParent.id
-                        );
+                      setActiveChildIndex(
+                        index
+                      );
 
                       onItemHover(
                         parentIndex,
@@ -1615,29 +1959,27 @@ export const RadialWheel: FC<
                       );
                     }}
                     onMouseLeave={() => {
-                      setActiveChildIndex(null);
-                      onItemHover(null, null);
-                    }}
-                    onClick={() => {
-                      const parentIndex =
-                        enabledItems.findIndex(
-                          (item) =>
-                            item.id ===
-                            activeParent.id
-                        );
+                      setActiveChildIndex(
+                        null
+                      );
 
+                      onItemHover(
+                        null,
+                        null
+                      );
+                    }}
+                    onClick={() =>
                       handleChildClick(
                         parentIndex,
                         index,
                         child
-                      );
-                    }}
+                      )
+                    }
                     className={`
                       cursor-pointer
 
-                      transition-all
+                      transition-colors
                       duration-150
-                      ease-out
 
                       ${
                         isActive
@@ -1648,8 +1990,6 @@ export const RadialWheel: FC<
                           : `
                             fill-white
                             stroke-white
-                            hover:fill-blue-100
-                            hover:stroke-blue-100
                           `
                       }
                     `}
@@ -1658,68 +1998,28 @@ export const RadialWheel: FC<
                   />
 
                   {/* ==================================================
-                      CHILD CONNECTOR
-                  =================================================== */}
-
-                  <line
-                    x1={
-                      polarToCartesian(
-                        center,
-                        center,
-                        outerRadius +
-                          OUTER_ARC_THICKNESS,
-                        angle
-                      ).x
-                    }
-                    y1={
-                      polarToCartesian(
-                        center,
-                        center,
-                        outerRadius +
-                          OUTER_ARC_THICKNESS,
-                        angle
-                      ).y
-                    }
-                    x2={
-                      polarToCartesian(
-                        center,
-                        center,
-                        childSectorInnerRadius,
-                        angle
-                      ).x
-                    }
-                    y2={
-                      polarToCartesian(
-                        center,
-                        center,
-                        childSectorInnerRadius,
-                        angle
-                      ).y
-                    }
-                    className={`
-                      pointer-events-none
-
-                      transition-colors
-                      duration-150
-
-                      ${
-                        isActive
-                          ? "stroke-blue-700"
-                          : "stroke-white"
-                      }
-                    `}
-                    strokeWidth="4"
-                  />
-
-                  {/* ==================================================
                       CHILD CONTENT
-                  =================================================== */}
+
+                      x/y are the CENTER of the child sector.
+                  ================================================== */}
 
                   <foreignObject
-                    x={x - itemSize * 0.55}
-                    y={y - itemSize * 0.45}
-                    width={itemSize * 1.1}
-                    height={itemSize * 0.9}
+                    x={
+                      x -
+                      CHILD_CONTENT_SIZE /
+                        2
+                    }
+                    y={
+                      y -
+                      CHILD_CONTENT_SIZE /
+                        2
+                    }
+                    width={
+                      CHILD_CONTENT_SIZE
+                    }
+                    height={
+                      CHILD_CONTENT_SIZE
+                    }
                     className="
                       pointer-events-none
                       overflow-visible
@@ -1730,22 +2030,20 @@ export const RadialWheel: FC<
                         flex
                         h-full
                         w-full
+
                         items-center
                         justify-center
                       "
                     >
                       <button
                         type="button"
-                        aria-label={child.name}
+                        aria-label={
+                          child.name
+                        }
                         onMouseEnter={() => {
-                          setActiveChildIndex(index);
-
-                          const parentIndex =
-                            enabledItems.findIndex(
-                              (item) =>
-                                item.id ===
-                                activeParent.id
-                            );
+                          setActiveChildIndex(
+                            index
+                          );
 
                           onItemHover(
                             parentIndex,
@@ -1753,25 +2051,25 @@ export const RadialWheel: FC<
                           );
                         }}
                         onMouseLeave={() => {
-                          setActiveChildIndex(null);
-                          onItemHover(null, null);
-                        }}
-                        onClick={() => {
-                          const parentIndex =
-                            enabledItems.findIndex(
-                              (item) =>
-                                item.id ===
-                                activeParent.id
-                            );
+                          setActiveChildIndex(
+                            null
+                          );
 
+                          onItemHover(
+                            null,
+                            null
+                          );
+                        }}
+                        onClick={() =>
                           handleChildClick(
                             parentIndex,
                             index,
                             child
-                          );
-                        }}
+                          )
+                        }
                         className={`
                           pointer-events-auto
+
                           group
 
                           flex
@@ -1779,17 +2077,18 @@ export const RadialWheel: FC<
                           w-full
 
                           flex-col
+
                           items-center
                           justify-center
 
-                          rounded-2xl
+                          gap-0.5
 
                           border-0
                           bg-transparent
 
                           outline-none
 
-                          transition-all
+                          transition-transform
                           duration-150
 
                           ${
@@ -1798,15 +2097,24 @@ export const RadialWheel: FC<
                               : "text-black"
                           }
 
+                          hover:scale-105
+
                           focus-visible:ring-2
                           focus-visible:ring-blue-700
                         `}
                       >
-                        {/* ICON */}
+                        {/* CHILD ICON */}
 
                         <span
                           className={`
+                            flex
+
                             ${iconClass}
+
+                            shrink-0
+
+                            items-center
+                            justify-center
 
                             leading-none
 
@@ -1815,33 +2123,35 @@ export const RadialWheel: FC<
 
                             group-hover:scale-110
                           `}
-                        >
-                          {child.name ?? "•"}
+                          >
+                          {renderIcon(
+                            child.icon,
+                            "h-full w-full"
+                          )}
                         </span>
 
-                        {/* LABEL */}
+                        {/* CHILD LABEL */}
 
-                        {config.showLabels !==
-                          false && (
+                        {/* {config.showLabels !==
+                          false && ( */}
                           <span
                             className="
-                              mt-1
+                              max-w-[66px]
 
-                              max-w-[90px]
-
-                              truncate
+                              overflow-hidden
+                              text-ellipsis
+                              whitespace-nowrap
 
                               text-center
 
-                              text-[11px]
+                              text-[10px]
                               font-medium
-                              leading-tight
-                              tracking-wide
+                              leading-none
                             "
                           >
                             {child.name}
                           </span>
-                        )}
+                        {/* )} */}
                       </button>
                     </div>
                   </foreignObject>
@@ -1850,15 +2160,19 @@ export const RadialWheel: FC<
             }
           )}
 
-        {/* ========================================================
+        {/* ======================================================
             CENTER HUB
-        ========================================================= */}
+        ====================================================== */}
 
         {config.showCenter !==
           false && (
           <foreignObject
-            x={center - 58}
-            y={center - 58}
+            x={
+              center - 58
+            }
+            y={
+              center - 58
+            }
             width="116"
             height="116"
             className="
@@ -1868,7 +2182,9 @@ export const RadialWheel: FC<
             <button
               type="button"
               aria-label="Close radial wheel"
-              onClick={onClose}
+              onClick={
+                onClose
+              }
               className="
                 group
 
@@ -1884,7 +2200,7 @@ export const RadialWheel: FC<
                 border-[6px]
                 border-white
 
-                bg-[#0b0b0b]
+                bg-transparent
 
                 text-white
 
@@ -1903,13 +2219,17 @@ export const RadialWheel: FC<
                 className="
                   flex
                   flex-col
+
                   items-center
                   justify-center
+
                   gap-2
                 "
               >
+                {/* CENTER ICON */}
+
                 <span
-                  className="
+                  className={`
                     flex
                     h-10
                     w-10
@@ -1922,24 +2242,35 @@ export const RadialWheel: FC<
                     border-2
                     border-white
 
-                    text-lg
                     text-white
 
                     transition-colors
-                    duration-150
 
                     group-hover:border-blue-700
                     group-hover:text-blue-700
-                  "
+                    ${
+                      currentPage?.type === "music"
+                        ? `music-center-record ${isMusicPlaying ? "is-playing" : ""}`
+                        : ""
+                    }
+                  `}
                 >
-                  {config.centerIcon ??
-                    "×"}
+                  {currentPage?.type === "music"
+                    ? renderIcon("disc-3", "h-7 w-7")
+                    : typeof config.centerIcon === "string"
+                      ? renderIcon(config.centerIcon, "h-5 w-5")
+                      : "×"}
                 </span>
+
+                {/* CENTER LABEL */}
 
                 <span
                   className="
                     max-w-20
-                    truncate
+
+                    overflow-hidden
+                    text-ellipsis
+                    whitespace-nowrap
 
                     text-[8px]
                     font-semibold
@@ -1959,9 +2290,9 @@ export const RadialWheel: FC<
         )}
       </svg>
 
-      {/* ==========================================================
+      {/* ========================================================
           PAGE CONTROLS
-      =========================================================== */}
+      ========================================================= */}
 
       {config.showCenter !==
         false && (
@@ -1975,18 +2306,21 @@ export const RadialWheel: FC<
             z-50
 
             flex
+
             -translate-x-1/2
 
             items-center
             gap-2
           "
         >
-          {/* Previous */}
+          {/* PREVIOUS */}
 
           <button
             type="button"
             aria-label="Previous page"
-            disabled={!previousPageId}
+            disabled={
+              !previousPageId
+            }
             onClick={() =>
               previousPageId &&
               onPageChange(
@@ -2013,7 +2347,7 @@ export const RadialWheel: FC<
 
               outline-none
 
-              transition-colors
+              transition-all
               duration-150
 
               hover:border-blue-700
@@ -2032,7 +2366,7 @@ export const RadialWheel: FC<
             ‹
           </button>
 
-          {/* Page */}
+          {/* PAGE INDICATOR */}
 
           <span
             className="
@@ -2041,7 +2375,7 @@ export const RadialWheel: FC<
               border-2
               border-white
 
-              bg-[#0b0b0b]
+              bg-transparent
 
               px-3
               py-1
@@ -2055,16 +2389,22 @@ export const RadialWheel: FC<
               text-white
             "
           >
-            {pageIndex + 1} /{" "}
+            {Math.max(
+              0,
+              pageIndex + 1
+            )}{" "}
+            /{" "}
             {enabledPages.length}
           </span>
 
-          {/* Next */}
+          {/* NEXT */}
 
           <button
             type="button"
             aria-label="Next page"
-            disabled={!nextPageId}
+            disabled={
+              !nextPageId
+            }
             onClick={() =>
               nextPageId &&
               onPageChange(
@@ -2091,7 +2431,7 @@ export const RadialWheel: FC<
 
               outline-none
 
-              transition-colors
+              transition-all
               duration-150
 
               hover:border-blue-700

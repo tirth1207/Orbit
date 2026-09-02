@@ -29,6 +29,19 @@ const SAMPLE_FALLBACK_CONFIG: AppConfig = migrateAppConfig({
   blur: true,
   theme: "system",
   pages: [{
+    id: "music",
+    name: "Music",
+    icon: "music-2",
+    type: "music",
+    enabled: true,
+    items: [
+      { id: "music-play", name: "Play", type: "media", target: "playpause", icon: "play", enabled: true },
+      { id: "music-next", name: "Next", type: "media", target: "next", icon: "skip-forward", enabled: true },
+      { id: "music-repeat", name: "Repeat", type: "media", target: "repeat", icon: "repeat", enabled: true },
+      { id: "music-shuffle", name: "Shuffle", type: "media", target: "shuffle", icon: "shuffle", enabled: true },
+      { id: "music-previous", name: "Previous", type: "media", target: "previous", icon: "skip-back", enabled: true },
+    ],
+  }, {
     id: "applications",
     name: "Applications",
     icon: "grid-3x3",
@@ -53,7 +66,7 @@ const SAMPLE_FALLBACK_CONFIG: AppConfig = migrateAppConfig({
       },
     ],
   }],
-  defaultPageId: "applications",
+  defaultPageId: "music",
 });
 
 export function WheelWindow() {
@@ -189,6 +202,12 @@ export function WheelWindow() {
       }
 
       console.log("[Orbit] Selected:", targetItem.name);
+
+      if (targetItem.type === "media") {
+        await invoke("media_control", { action: targetItem.target });
+        closeWheel();
+        return;
+      }
 
       /* Close wheel before executing action */
       closeWheel();
